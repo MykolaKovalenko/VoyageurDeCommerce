@@ -17,9 +17,17 @@ public class Arc {
     public float getValeur(){
         return valeur;
     }
+    public Noeud getN1(){
+        return n1;
+    }
+
+    public Noeud getN2(){
+        return n2;
+    }
 
     public void setValeur(float valeur){
         this.valeur = valeur;
   }//bjr  
 
+    
 }
