@@ -7,6 +7,7 @@ import java.util.HashSet;
 public class Graphe {
     private ArrayList<Noeud> noeuds;
     private ArrayList<Arc> arcs;
+    public boolean GEO;
 
     public Graphe() {
         this.noeuds = new ArrayList<>();
@@ -66,18 +67,22 @@ public class Graphe {
         BufferedReader br = null;
         try {
             br = new BufferedReader(new FileReader(nomFichier));
-            String ligne;
+            String ligne = br.readLine();
+            if (ligne.contains("2D") || ligne.contains("2D")) {
+                while ((ligne = br.readLine()) != null) {
+                    String[] p = ligne.split(";"); // au cas de besoin changer ; par , par exemple
+                    if (p.length == 3) { // on verifie que il y a exactement 3 valeurs
+                        int id = Integer.parseInt(p[0]);
+                        float x = Float.parseFloat(p[1]);
+                        float y = Float.parseFloat(p[2]);
 
-            while ((ligne = br.readLine()) != null) {
-                String[] p = ligne.split(";"); // au cas de besoin changer ; par , par exemple
-                if (p.length == 3) { // on verifie que il y a exactement 3 valeurs
-                    int id = Integer.parseInt(p[0]);
-                    float x = Float.parseFloat(p[1]);
-                    float y = Float.parseFloat(p[2]);
-
-                    Noeud n = new Noeud(id, x, y);
-                    noeuds.add(n);
+                        Noeud n = new Noeud(id, x, y);
+                        noeuds.add(n);
+                    }
                 }
+            }
+            else if (ligne.contains("GEO") || ligne.contains("geo")) {
+                
             }
         } finally {
             // gestion derreurs si fichier nest pas trouvé
@@ -148,9 +153,9 @@ public class Graphe {
                         int id1 = Math.min(n1.getId(), n2.getId());
                         // min = le plus petit ID entre n1 et n2 Exemple : n1=5, n2=3 -> id1=3
                         int id2 = Math.max(n1.getId(), n2.getId()); // pareil pour max
-                        
+
                         String key = id1 + "-" + id2;
-                        // Creer string "3-5" (toujours petit-grand)  Arc 3->5 = Arc 5->3 (meme chose!)
+                        // Creer string "3-5" (toujours petit-grand) Arc 3->5 = Arc 5->3 (meme chose!)
 
                         // Verifier rapidement si cet arc existe deja (O(1) avec HashSet)
                         if (!connectes.contains(key)) {
@@ -189,4 +194,10 @@ public class Graphe {
         }
         return false;
     }
+
+    // public Graphe gluton(){
+    //     Graphe circuit = new Graphe();
+    //     circuit.noeuds = (this.noeuds.)
+
+    // }
 }
