@@ -7,15 +7,18 @@ import java.util.HashSet;
 public class Graphe {
     private ArrayList<Noeud> noeuds;
     private ArrayList<Arc> arcs;
+    private boolean geoDistance;
 
     public Graphe() {
         this.noeuds = new ArrayList<>();
         this.arcs = new ArrayList<>();
+        this.geoDistance = false;
     }
 
     public Graphe(int k) {
         this.noeuds = new ArrayList<>();
         this.arcs = new ArrayList<>();
+        this.geoDistance = false;
 
         for (int i = 0; i < k; i++) {
             // On crée un nœud avec id 'i'
@@ -44,7 +47,7 @@ public class Graphe {
 
     // Ajouter un arc entre deux noeuds
     public void addArc(Noeud n1, Noeud n2) {
-        float distance = n1.distanceTo(n2);
+        float distance = n1.distanceTo(n2, this.geoDistance);
         Arc arc = new Arc(n1, n2, distance);
         arcs.add(arc);
         n1.getArcs().add(arc);
@@ -66,16 +69,20 @@ public class Graphe {
         BufferedReader br = null;
         try {
             br = new BufferedReader(new FileReader(nomFichier));
+            String premiereLigne = br.readLine();
+            if (premiereLigne.equals("GEO")) {
+                geoDistance = true;
+            }
             String ligne;
 
             while ((ligne = br.readLine()) != null) {
                 String[] p = ligne.split(";"); // au cas de besoin changer ; par , par exemple
                 if (p.length == 3) { // on verifie que il y a exactement 3 valeurs
                     int id = Integer.parseInt(p[0]);
-                    float x = Float.parseFloat(p[1]);
-                    float y = Float.parseFloat(p[2]);
+                    float abs = Float.parseFloat(p[1].trim().replace(",", ".")); //remplace une vi
+                    float ord = Float.parseFloat(p[2].trim().replace(",", "."));
 
-                    Noeud n = new Noeud(id, x, y);
+                    Noeud n = new Noeud(id, abs, ord);
                     noeuds.add(n);
                 }
             }
@@ -87,6 +94,7 @@ public class Graphe {
             }
         }
     }
+
 
     // Creer un graphe complet (tous les noeuds connectes entre eux)
     public void complet() {
@@ -112,7 +120,7 @@ public class Graphe {
                 for (Noeud n2 : noeuds) {
                     // si c'est pas le meme noeud ET qu'il y a pas deja un arc entre eux
                     if (n1.getId() != n2.getId() && !arcExiste(n1, n2)) {
-                        float dist = n1.distanceTo(n2);
+                        float dist = n1.distanceTo(n2, this.geoDistance);
                         // Garder celui avec la plus petite distance
                         if (dist < minDistance) {
                             minDistance = dist;
@@ -148,13 +156,13 @@ public class Graphe {
                         int id1 = Math.min(n1.getId(), n2.getId());
                         // min = le plus petit ID entre n1 et n2 Exemple : n1=5, n2=3 -> id1=3
                         int id2 = Math.max(n1.getId(), n2.getId()); // pareil pour max
-                        
+
                         String key = id1 + "-" + id2;
-                        // Creer string "3-5" (toujours petit-grand)  Arc 3->5 = Arc 5->3 (meme chose!)
+                        // Creer string "3-5" (toujours petit-grand) Arc 3->5 = Arc 5->3 (meme chose!)
 
                         // Verifier rapidement si cet arc existe deja (O(1) avec HashSet)
                         if (!connectes.contains(key)) {
-                            float dist = n1.distanceTo(n2);
+                            float dist = n1.distanceTo(n2, this.geoDistance);
                             if (dist < minDistance) {
                                 minDistance = dist;
                                 plusProche = n2;
