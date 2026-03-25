@@ -7,18 +7,18 @@ import java.util.HashSet;
 public class Graphe {
     private ArrayList<Noeud> noeuds;
     private ArrayList<Arc> arcs;
-    private boolean geoDistance;
+    private boolean isGeo;
 
     public Graphe() {
         this.noeuds = new ArrayList<>();
         this.arcs = new ArrayList<>();
-        this.geoDistance = false;
+        this.isGeo = false;
     }
 
     public Graphe(int k) {
         this.noeuds = new ArrayList<>();
         this.arcs = new ArrayList<>();
-        this.geoDistance = false;
+        this.isGeo = false;
 
         for (int i = 0; i < k; i++) {
             // On crée un nœud avec id 'i'
@@ -47,7 +47,7 @@ public class Graphe {
 
     // Ajouter un arc entre deux noeuds
     public void addArc(Noeud n1, Noeud n2) {
-        float distance = n1.distanceTo(n2, this.geoDistance);
+        float distance = n1.distanceTo(n2, this.isGeo);
         Arc arc = new Arc(n1, n2, distance);
         arcs.add(arc);
         n1.getArcs().add(arc);
@@ -71,7 +71,7 @@ public class Graphe {
             br = new BufferedReader(new FileReader(nomFichier));
             String premiereLigne = br.readLine();
             if (premiereLigne.equals("GEO")) {
-                geoDistance = true;
+                isGeo = true;
             }
             String ligne;
 
@@ -120,7 +120,7 @@ public class Graphe {
                 for (Noeud n2 : noeuds) {
                     // si c'est pas le meme noeud ET qu'il y a pas deja un arc entre eux
                     if (n1.getId() != n2.getId() && !arcExiste(n1, n2)) {
-                        float dist = n1.distanceTo(n2, this.geoDistance);
+                        float dist = n1.distanceTo(n2, this.isGeo);
                         // Garder celui avec la plus petite distance
                         if (dist < minDistance) {
                             minDistance = dist;
@@ -162,7 +162,7 @@ public class Graphe {
 
                         // Verifier rapidement si cet arc existe deja (O(1) avec HashSet)
                         if (!connectes.contains(key)) {
-                            float dist = n1.distanceTo(n2, this.geoDistance);
+                            float dist = n1.distanceTo(n2, this.isGeo);
                             if (dist < minDistance) {
                                 minDistance = dist;
                                 plusProche = n2;
