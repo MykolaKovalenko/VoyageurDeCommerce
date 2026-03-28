@@ -189,4 +189,45 @@ public class Graphe {
         }
         return false;
     }
+
+
+    public Graphe glouton() {
+        ArrayList<Noeud> chemin = new ArrayList<>();
+        ArrayList<Noeud> nonVisites = new ArrayList<>(noeuds);
+
+        int index = (int)(Math.random() * nonVisites.size()); // genere un indexe aleatoire
+        Noeud courant = nonVisites.get(index); // si on a les point A B C D et que indexe=2 alors courant = C
+        chemin.add(courant);
+        nonVisites.remove(courant);
+
+        while (!nonVisites.isEmpty()) {
+            Noeud plusProche = null;
+            float minDistance = Float.MAX_VALUE;
+
+            for (Noeud n : nonVisites) {
+                float dist = courant.distanceTo(n);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    plusProche = n;
+                }
+            }
+            chemin.add(plusProche);
+            nonVisites.remove(plusProche);
+            courant = plusProche;
+        }
+
+    chemin.add(chemin.get(0));// comme ça on ferme le circuit
+
+    Graphe resultat = new Graphe();
+
+    resultat.getNoeuds().addAll(chemin); // pour ajouter les noeuds
+
+    for (int i = 0; i < chemin.size() - 1; i++) { // enfin ajouter les arcs
+        Noeud n1 = chemin.get(i);
+        Noeud n2 = chemin.get(i + 1);
+        resultat.addArc(n1, n2);
+    }
+
+    return resultat;
+    }
 }
