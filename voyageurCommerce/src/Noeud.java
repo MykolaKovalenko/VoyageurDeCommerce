@@ -31,20 +31,20 @@ public class Noeud {
     }
 
     // setters
-    public void setX(float abs) {
+    public void setAbs(double abs) {
         this.abs = abs;
     }
 
-    public void setY(float ord) {
+    public void setOrd(double ord) {
         this.ord = ord;
     }
 
     // distance jusqua noeud n
-    public float distanceTo(Noeud n, boolean isGeo) {
+    public double distanceTo(Noeud n, boolean isGeo) {
         if (!isGeo) {
             double dAbs = this.abs - n.getAbs();
             double dOrd = this.ord - n.getOrd();
-            return (float) Math.sqrt(dAbs * dAbs + dOrd * dOrd);
+            return (double) Math.sqrt(dAbs * dAbs + dOrd * dOrd);
         } else {
             // Rayon de la Terre en kilomètres
             final double R = 6371.0;
@@ -67,7 +67,7 @@ public class Noeud {
             double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
             // Distance finale
-            return (float) (R * c);
+            return (double) (R * c);
         }
     }
 
