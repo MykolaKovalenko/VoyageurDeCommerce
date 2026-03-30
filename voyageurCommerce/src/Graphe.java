@@ -135,7 +135,7 @@ public class Graphe {
                 isGeo = false;
             } else {
                 throw new IllegalArgumentException(
-                "Format inconnu : la première ligne doit être 'GEO' ou '2D'.");
+                        "Format inconnu : la première ligne doit être 'GEO' ou '2D'.");
             }
 
             String ligne;
@@ -154,7 +154,7 @@ public class Graphe {
         } catch (IOException e) {
             System.err.println("Erreur lors de la lecture du fichier : " + e.getMessage());
         } catch (IllegalArgumentException e) {
-        System.err.println("Erreur de format : " + e.getMessage());
+            System.err.println("Erreur de format : " + e.getMessage());
         }
     }
 
@@ -240,9 +240,62 @@ public class Graphe {
         for (int i = 0; i < chemin.size() - 1; i++) { // enfin ajouter les arcs
             Noeud n1 = chemin.get(i);
             Noeud n2 = chemin.get(i + 1);
-            resultat.addArc(n1, n2);
+            resultat.addArc(new Noeud(n1.getId(), n1.getAbs(), n1.getOrd()), new Noeud(n2.getId(), n2.getAbs(), n2.getOrd()));
         }
 
         return resultat;
     }
+
+
+    public void evaluerComplexite() {
+
+        Graphe rechaufement = new Graphe();
+        rechaufement.isGeo = this.isGeo;
+
+        for (int i = 0; i < 100; i++) {
+            Graphe tmp = new Graphe();
+            tmp.isGeo = this.isGeo;
+
+            for (Noeud n : this.noeuds) {
+                tmp.getNoeuds().add(new Noeud(n.getId(), n.getAbs(), n.getOrd()));
+        }
+
+        tmp.glouton();
+        }
+        int nombreVilles = this.noeuds.size();
+        int[] tailles = {
+            nombreVilles / 8,
+            nombreVilles / 4,
+            nombreVilles / 2,
+            nombreVilles
+        };
+
+        int repetitions = 100;
+
+        for (int nb : tailles) {
+            long total = 0;
+            for (int r = 0; r < repetitions; r++) {
+
+                Graphe tmp = new Graphe();
+                tmp.isGeo = this.isGeo;
+
+                for (int i = 0; i < nb; i++) {
+                    Noeud original = this.noeuds.get(i);
+                    tmp.getNoeuds().add(new Noeud(original.getId(), original.getAbs(), original.getOrd()));
+                }
+
+                long debut = System.nanoTime();
+                tmp.glouton();
+                long fin = System.nanoTime();
+
+                total += (fin - debut);
+            }
+
+            long moyenne = total / repetitions;
+            double tempsSec = moyenne / 1_000_000_000.0;
+
+            System.out.println("nombre villes = " + nb + " | temps moyen = " + tempsSec + " s");
+        }
+    }
+
 }
