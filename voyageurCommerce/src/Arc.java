@@ -27,7 +27,7 @@ public class Arc {
 
     public void setValeur(double valeur){
         this.valeur = valeur;
-    }
+  }//bjr  
 
     
 }
