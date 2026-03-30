@@ -2,16 +2,21 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Graphe {
     private ArrayList<Noeud> noeuds;
     private ArrayList<Arc> arcs;
+    // Set garontie que il y a pas de repetitionn
+    private Map<String, Arc> arcsMap;
+
     private boolean isGeo;
 
     public Graphe() {
         this.noeuds = new ArrayList<>();
         this.arcs = new ArrayList<>();
+        this.arcsMap = new HashMap<>();
         this.isGeo = false;
     }
 
@@ -40,21 +45,53 @@ public class Graphe {
         return null;
     }
 
+    public double cout() {
+        double somme = 0;
+        for (Arc a : arcs) {
+            somme += a.getValeur();
+        }
+        return somme;
+    }
+
     public void supprimerNoeud(int id) {
         Noeud n = getNoeudById(id);
         if (n != null) {
             noeuds.remove(n);
-            arcs.removeIf(a -> a.getN1().equals(n) || a.getN2().equals(n));
+
+            // 2. Supprimer tous les arcs dans arcsMap
+            arcsMap.entrySet().removeIf(entry -> {
+                String key = entry.getKey();
+                // un arc est du type "id1-id2"
+                return key.startsWith(n.getId() + "-") || key.endsWith("-" + n.getId());
+            });
+            for (Noeud autre : noeuds) {
+                autre.getArcs().remove(n);
+            }
         }
+    }
+
+    private boolean arcExiste(Noeud n1, Noeud n2) {
+        int id1 = Math.min(n1.getId(), n2.getId());
+        int id2 = Math.max(n1.getId(), n2.getId());
+        String key = id1 + "-" + id2;
+
+        return arcsMap.containsKey(key);
     }
 
     // Ajouter un arc entre deux noeuds
     public void addArc(Noeud n1, Noeud n2) {
-        if (arcExiste(n1, n2))
+
+        int id1 = Math.min(n1.getId(), n2.getId());
+        int id2 = Math.max(n1.getId(), n2.getId());
+        String key = id1 + "-" + id2;
+
+        if (arcsMap.containsKey(key))
             return;
+
         double distance = n1.distanceTo(n2, this.isGeo);
         Arc arc = new Arc(n1, n2, distance);
         arcs.add(arc);
+        arcsMap.put(key, arc);
         n1.getArcs().add(arc);
         n2.getArcs().add(arc);
     }
@@ -96,8 +133,10 @@ public class Graphe {
                 isGeo = true;
             } else if (premiereLigne != null && premiereLigne.equals("2D")) {
                 isGeo = false;
-            } else
-                return;
+            } else {
+                throw new IllegalArgumentException(
+                "Format inconnu : la première ligne doit être 'GEO' ou '2D'.");
+            }
 
             String ligne;
 
@@ -114,6 +153,8 @@ public class Graphe {
             }
         } catch (IOException e) {
             System.err.println("Erreur lors de la lecture du fichier : " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+        System.err.println("Erreur de format : " + e.getMessage());
         }
     }
 
@@ -126,12 +167,11 @@ public class Graphe {
         }
     }
 
-    // Partiel avec arcExiste()
-    // Version plus facile, mais peut etre lente avec beaucoup de noeuds...
-    // Complexite : O(n*k*m) - m = nombre d'arcs
     public void partiel(int k) {
-        if (k <= 0 || k >= noeuds.size())
+        if (k <= 0 || k >= noeuds.size()) {
+            System.out.println("Le nombre des voisines inferier au nombre de tout les noeuds");
             return;
+        }
 
         // Pour chaque noeud du graphe
         for (Noeud n1 : noeuds) {
@@ -149,89 +189,20 @@ public class Graphe {
                 // Cherche le plus proche qui n'est pas encore connecte a n1
                 for (Noeud n2 : nonVisites) {
                     // si c'est pas le meme noeud ET qu'il y a pas deja un arc entre eux
-                    if (!arcExiste(n1, n2)) {
-                        double dist = n1.distanceTo(n2, this.isGeo);
-                        // Garder celui avec la plus petite distance
-                        if (dist < minDistance) {
-                            minDistance = dist;
-                            plusProche = n2;
-                        }
-                    } else {
-                        i++;
+                    double dist = n1.distanceTo(n2, this.isGeo);
+                    // Garder celui avec la plus petite distance
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        plusProche = n2;
                     }
                 }
+
                 if (plusProche != null) {
                     addArc(n1, plusProche);
                     nonVisites.remove(plusProche);
                 }
             }
         }
-    }
-
-    // Partiel plus optimisé avec HashSet
-    // O(n²k) ,mieux que methode 1 si nous avons beaucoup d'arcs
-    public void partielOptimise(int k) {
-        // HashSet pour tracker les arcs crees
-        HashSet<String> connectes = new HashSet<>();
-
-        for (Noeud n1 : noeuds) {
-            ArrayList<Noeud> nonVisites = new ArrayList<>(this.noeuds);
-            nonVisites.remove(n1);
-            // Pour chaque noeud, on lui ajoute ses k plus proches voisins
-            for (int i = 0; i < k; i++) {
-                Noeud plusProche = null;
-                double minDistance = Double.MAX_VALUE;
-
-                for (Noeud n2 : nonVisites) {
-                    if (n1.getId() != n2.getId()) {
-                        // Creation d'une clé unique pour le couple (non-orienté)
-                        // min-max pour assurer que A-B et B-A donnent la meme clé
-                        int id1 = Math.min(n1.getId(), n2.getId());
-                        // min = le plus petit ID entre n1 et n2 Exemple : n1=5, n2=3 -> id1=3
-                        int id2 = Math.max(n1.getId(), n2.getId()); // pareil pour max
-
-                        String key = id1 + "-" + id2;
-                        // Creer string "3-5" (toujours petit-grand) Arc 3->5 = Arc 5->3 (meme chose!)
-
-                        // Verifier rapidement si cet arc existe deja (O(1) avec HashSet)
-                        if (!connectes.contains(key)) {
-                            double dist = n1.distanceTo(n2, this.isGeo);
-                            if (dist < minDistance) {
-                                minDistance = dist;
-                                plusProche = n2;
-                            }
-                        } else {
-                            i++;
-                        }
-                    }
-                }
-
-                // Si on a trouve le plus proche, on le connecte et on le marque
-                if (plusProche != null) {
-                    int id1 = Math.min(n1.getId(), plusProche.getId());
-                    int id2 = Math.max(n1.getId(), plusProche.getId());
-                    String key = id1 + "-" + id2;
-
-                    // Marquer comme connecte dans le HashSet
-                    connectes.add(key);
-                    // Creer l'arc dans le graphe
-                    addArc(n1, plusProche);
-                    nonVisites.remove(plusProche);
-                }
-            }
-        }
-    }
-
-    // Verifier si un arc existe entre n1 et n2 (non-oriente)
-    // O(m) - lent si beaucoup d'arcs!
-    private boolean arcExiste(Noeud n1, Noeud n2) {
-        for (Arc a : arcs) {
-            if ((a.getN1().equals(n1) && a.getN2().equals(n2)) ||
-                    (a.getN1().equals(n2) && a.getN2().equals(n1))) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public Graphe glouton() {
