@@ -125,8 +125,10 @@ public class Graphe {
 
     // Importer les noeuds depuis un fichier CSV (id;x;y)
     public void importer(String nomFichier) {
+        // un lecteur de fichier 
         BufferedReader br = null;
         try {
+            // ouvre le fichier a lire
             br = new BufferedReader(new FileReader(nomFichier));
             String premiereLigne = br.readLine();
             if (premiereLigne != null && premiereLigne.equals("GEO")) {
@@ -134,17 +136,20 @@ public class Graphe {
             } else if (premiereLigne != null && premiereLigne.equals("2D")) {
                 isGeo = false;
             } else {
-                throw new IllegalArgumentException(
-                        "Format inconnu : la première ligne doit être 'GEO' ou '2D'.");
+                throw new IllegalArgumentException("La première ligne doit être 'GEO' ou '2D'");
             }
 
             String ligne;
-
+            // on lit tout les lignes jusque a la fin du fichier
             while ((ligne = br.readLine()) != null) {
-                String[] p = ligne.split(";"); // au cas de besoin changer ; par , par exemple
-                if (p.length == 3) { // on verifie que il y a exactement 3 valeurs
+                // on divise la ligne en maurcau avec ;
+                String[] p = ligne.split(";"); 
+                // on verifie que il y a exactement 3 valeurs
+                if (p.length == 3) { 
                     int id = Integer.parseInt(p[0]);
-                    double abs = Double.parseDouble(p[1].trim().replace(",", ".")); // remplace une vi
+                    // remplace une virgule par un point, ex : 95,59 -> 95.59
+                    // si deja avec un point donc on ne touche pas, ex 95.59 -> 95.59
+                    double abs = Double.parseDouble(p[1].trim().replace(",", ".")); 
                     double ord = Double.parseDouble(p[2].trim().replace(",", "."));
 
                     Noeud n = new Noeud(id, abs, ord);
@@ -168,8 +173,8 @@ public class Graphe {
     }
 
     public void partiel(int k) {
-        if (k <= 0 || k >= noeuds.size()) {
-            System.out.println("Le nombre des voisines inferier au nombre de tout les noeuds");
+        if (k <= 1 || k >= noeuds.size()) {
+            System.out.println("Le nombre des voisines doit etre 1 et Nombre_Villes_Total - 1 ");
             return;
         }
 
@@ -209,8 +214,10 @@ public class Graphe {
         ArrayList<Noeud> chemin = new ArrayList<>();
         ArrayList<Noeud> nonVisites = new ArrayList<>(noeuds);
 
-        int index = (int) (Math.random() * nonVisites.size()); // genere un indexe aleatoire
-        Noeud courant = nonVisites.get(index); // si on a les point A B C D et que indexe=2 alors courant = C
+        // genere un indexe aleatoire entre 0 et nonVisites.size() 
+        int index = (int) (Math.random() * nonVisites.size()); 
+        // si on a les point A B C D et que indexe=2 alors courant = C
+        Noeud courant = nonVisites.get(index); 
         chemin.add(courant);
         nonVisites.remove(courant);
 
@@ -230,7 +237,8 @@ public class Graphe {
             courant = plusProche;
         }
 
-        chemin.add(chemin.get(0));// comme ça on ferme le circuit
+        // comme ça on ferme le circuit
+        chemin.add(chemin.get(0));
 
         Graphe resultat = new Graphe();
         resultat.isGeo = this.isGeo;

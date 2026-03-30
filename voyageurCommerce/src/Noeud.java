@@ -50,6 +50,8 @@ public class Noeud {
             final double R = 6371.0;
 
             // Conversion degrés → radians
+            // Latitude = Y
+            // Longitude = X
             double lat1 = Math.toRadians(this.abs);
             double lon1 = Math.toRadians(this.ord);
             double lat2 = Math.toRadians(n.getAbs());
