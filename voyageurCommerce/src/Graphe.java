@@ -6,13 +6,17 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Graphe {
+    // Liste des villes.
     private ArrayList<Noeud> noeuds;
+    // Liste de tous les arcs du graphe.
     private ArrayList<Arc> arcs;
-    // Set garontie que il y a pas de repetitionn
+    // Index rapide des arcs avec cle "idMin-idMax" pour eviter les doublons.
     private Map<String, Arc> arcsMap;
 
+    // true: coordonnees GEO (Haversine), false: distance euclidienne.
     private boolean isGeo;
 
+    // Graphe vide par defaut.
     public Graphe() {
         this.noeuds = new ArrayList<>();
         this.arcs = new ArrayList<>();
@@ -20,6 +24,8 @@ public class Graphe {
         this.isGeo = false;
     }
 
+    // Constructeur utilitaire: cree k noeuds "vides" (position 0,0).
+    // Utile pour des tests rapides.
     public Graphe(int k) {
         this();
         for (int i = 0; i < k; i++) {
@@ -36,6 +42,7 @@ public class Graphe {
         return arcs;
     }
 
+    // Recherche lineaire d'un noeud par identifiant.
     public Noeud getNoeudById(int id) {
         for (Noeud n : noeuds) {
             if (n.getId() == id) {
@@ -45,6 +52,8 @@ public class Graphe {
         return null;
     }
 
+    // Cout total du graphe courant = somme des valuations de ses arcs.
+    // Sur un graphe resultat de glouton, cela correspond a la longueur du circuit.
     public double cout() {
         double somme = 0;
         for (Arc a : arcs) {
@@ -53,32 +62,29 @@ public class Graphe {
         return somme;
     }
 
+    // Supprime un noeud + tous les arcs incidents.
+    // Cette methode est utile pour des manipulations avancees de graphe.
     public void supprimerNoeud(int id) {
         Noeud n = getNoeudById(id);
         if (n != null) {
             noeuds.remove(n);
 
-            // 2. Supprimer tous les arcs dans arcsMap
+            // Supprimer tous les arcs connectes a ce noeud
             arcsMap.entrySet().removeIf(entry -> {
                 String key = entry.getKey();
                 // un arc est du type "id1-id2"
                 return key.startsWith(n.getId() + "-") || key.endsWith("-" + n.getId());
             });
+
+            // Supprimer les arcs des autres noeuds
             for (Noeud autre : noeuds) {
-                autre.getArcs().remove(n);
+                autre.getArcs().removeIf(arc -> arc.getN1().getId() == id || arc.getN2().getId() == id);
             }
         }
     }
 
-    private boolean arcExiste(Noeud n1, Noeud n2) {
-        int id1 = Math.min(n1.getId(), n2.getId());
-        int id2 = Math.max(n1.getId(), n2.getId());
-        String key = id1 + "-" + id2;
-
-        return arcsMap.containsKey(key);
-    }
-
-    // Ajouter un arc entre deux noeuds
+    // Ajoute un arc non oriente entre n1 et n2, valorise par leur distance.
+    // Si l'arc existe deja, la methode ne fait rien.
     public void addArc(Noeud n1, Noeud n2) {
 
         int id1 = Math.min(n1.getId(), n2.getId());
@@ -96,8 +102,8 @@ public class Graphe {
         n2.getArcs().add(arc);
     }
 
-    // positionner les noeuds aleatoirement
-    // avec les valeurs max a inserer
+    // Positionne chaque noeud aleatoirement dans le rectangle [0,maxX] x [0,maxY].
+    // Cette methode sert surtout quand les noeuds ne viennent pas d'un CSV.
     public void positionner(double maxX, double maxY) {
         for (Noeud n : noeuds) {
             n.setAbs(Math.random() * maxX);
@@ -105,6 +111,8 @@ public class Graphe {
         }
     }
 
+    // Affichage debug complet du graphe.
+    // Pratique pour verifier visuellement les noeuds et leurs arcs.
     public void afficher() {
         System.out.println("===== GRAPHE =====");
         System.out.println(this.isGeo ? "type GEO" : "type 2D");
@@ -123,37 +131,41 @@ public class Graphe {
         System.out.println("Nombre d'arcs : " + arcs.size());
     }
 
-    // Importer les noeuds depuis un fichier CSV (id;x;y)
+    // ------------------------------
+    // Chargement depuis CSV
+    // ------------------------------
+
+    // Importe les noeuds depuis un CSV de format:
+    // 1ere ligne: GEO ou 2D
+    // lignes suivantes: id;abs;ord
     public void importer(String nomFichier) {
-        // un lecteur de fichier 
-        BufferedReader br = null;
-        try {
-            // ouvre le fichier a lire
-            br = new BufferedReader(new FileReader(nomFichier));
+        try (BufferedReader br = new BufferedReader(new FileReader(nomFichier))) {
+            // La 1ere ligne du fichier indique le type de distance a utiliser.
             String premiereLigne = br.readLine();
             if (premiereLigne != null && premiereLigne.equals("GEO")) {
                 isGeo = true;
             } else if (premiereLigne != null && premiereLigne.equals("2D")) {
                 isGeo = false;
             } else {
-                throw new IllegalArgumentException("La première ligne doit être 'GEO' ou '2D'");
+                throw new IllegalArgumentException("La premiere ligne doit etre 'GEO' ou '2D'");
             }
 
             String ligne;
-            // on lit tout les lignes jusque a la fin du fichier
+            // on lit toutes les lignes jusque a la fin du fichier
             while ((ligne = br.readLine()) != null) {
-                // on divise la ligne en maurcau avec ;
-                String[] p = ligne.split(";"); 
-                // on verifie que il y a exactement 3 valeurs
-                if (p.length == 3) { 
+                // on divise la ligne en morceaux avec ;
+                String[] p = ligne.split(";");
+                // on verifie qu'il y a exactement 3 valeurs
+                if (p.length == 3) {
+                    // Format attendu: id;abs;ord
                     int id = Integer.parseInt(p[0]);
                     // remplace une virgule par un point, ex : 95,59 -> 95.59
                     // si deja avec un point donc on ne touche pas, ex 95.59 -> 95.59
-                    double abs = Double.parseDouble(p[1].trim().replace(",", ".")); 
+                    double abs = Double.parseDouble(p[1].trim().replace(",", "."));
                     double ord = Double.parseDouble(p[2].trim().replace(",", "."));
 
-                    Noeud n = new Noeud(id, abs, ord);
-                    noeuds.add(n);
+                    // Chaque ligne devient un objet Noeud.
+                    noeuds.add(new Noeud(id, abs, ord));
                 }
             }
         } catch (IOException e) {
@@ -163,7 +175,12 @@ public class Graphe {
         }
     }
 
-    // Creer un graphe complet (tous les noeuds connectes entre eux)
+    // ------------------------------
+    // Types de graphes
+    // ------------------------------
+
+    // Cree un graphe complet: chaque paire de noeuds est reliee.
+    // Nombre d'arcs attendu: n*(n-1)/2.
     public void complet() {
         for (int i = 0; i < noeuds.size(); i++) {
             for (int j = i + 1; j < noeuds.size(); j++) {
@@ -178,15 +195,14 @@ public class Graphe {
             return;
         }
 
-        // Pour chaque noeud du graphe
+        // Pour chaque noeud, on ajoute des arcs vers ses k plus proches voisins.
         for (Noeud n1 : noeuds) {
-            // pour chaque noeud on fait une liste des noeud qui on été verifiés si ils sont
-            // proches ou pas
+            // Liste des candidats encore disponibles autour de n1.
             ArrayList<Noeud> nonVisites = new ArrayList<>(this.noeuds);
-            // on suprime des le debut cette liste le noeud de dont les plus proches
-            // voisines on cherche
+            // On retire n1 lui-meme: un noeud n'est pas voisin de lui-meme.
             nonVisites.remove(n1);
-            // on
+
+            // Selection gloutonne locale des k voisins les plus proches.
             for (int i = 0; i < k; i++) {
                 Noeud plusProche = null;
                 double minDistance = Double.MAX_VALUE;
@@ -203,6 +219,8 @@ public class Graphe {
                 }
 
                 if (plusProche != null) {
+                    // On ajoute l'arc (si absent) puis on retire ce voisin des candidats
+                    // pour obtenir les k plus proches distincts.
                     addArc(n1, plusProche);
                     nonVisites.remove(plusProche);
                 }
@@ -210,87 +228,173 @@ public class Graphe {
         }
     }
 
+    // ------------------------------
+    // Outil interne
+    // ------------------------------
+
+    // Recupere l'arc entre deux noeuds s'il existe, sinon null.
+    private Arc getArc(Noeud n1, Noeud n2) {
+        // Normalisation des ids pour representer un arc non oriente.
+        int id1 = Math.min(n1.getId(), n2.getId());
+        int id2 = Math.max(n1.getId(), n2.getId());
+        return arcsMap.get(id1 + "-" + id2);
+    }
+
     public Graphe glouton() {
+        // Cas limite: pas de noeuds, pas de tour.
+        if (noeuds.isEmpty()) {
+            return null;
+        }
+
+        // chemin: ordre de visite construit par l'algorithme.
         ArrayList<Noeud> chemin = new ArrayList<>();
+        // nonVisites: ensemble des noeuds qu'il reste a visiter.
         ArrayList<Noeud> nonVisites = new ArrayList<>(noeuds);
 
-        // genere un indexe aleatoire entre 0 et nonVisites.size() 
-        int index = (int) (Math.random() * nonVisites.size()); 
-        // si on a les point A B C D et que indexe=2 alors courant = C
-        Noeud courant = nonVisites.get(index); 
+        // Le depart est aleatoire.
+        // Cela evite de toujours produire exactement le meme tour.
+        int index = (int) (Math.random() * nonVisites.size());
+        Noeud courant = nonVisites.get(index);
         chemin.add(courant);
         nonVisites.remove(courant);
 
+        // A chaque etape on va au plus proche voisin non visite.
         while (!nonVisites.isEmpty()) {
             Noeud plusProche = null;
             double minDistance = Double.MAX_VALUE;
 
-            for (Noeud n : nonVisites) {
-                double dist = courant.distanceTo(n, this.isGeo);
-                if (dist < minDistance) {
-                    minDistance = dist;
-                    plusProche = n;
+            // Parcourir les arcs du nœud courant pour trouver le plus proche voisin
+            // connecté
+            for (Arc arc : courant.getArcs()) {
+                // Récupérer l'autre extrémité de l'arc
+                Noeud voisin = arc.getN1().getId() == courant.getId() ? arc.getN2() : arc.getN1();
+
+                // Si ce voisin n'a pas été visité
+                if (nonVisites.contains(voisin)) {
+                    // La valeur de l'arc est deja la distance entre courant et voisin.
+                    double dist = arc.getValeur();
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        plusProche = voisin;
+                    }
                 }
             }
+
+            // Si le graphe partiel bloque, on complete dynamiquement avec l'arc le plus court.
+            // Cela garantit que l'algorithme peut terminer un circuit.
+            if (plusProche == null) {
+                for (Noeud n : nonVisites) {
+                    // Ici on calcule la distance geometrique directement,
+                    // puis on ajoute explicitement cet arc au graphe source.
+                    double dist = courant.distanceTo(n, this.isGeo);
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        plusProche = n;
+                    }
+                }
+
+                if (plusProche == null) {
+                    return null;
+                }
+
+                addArc(courant, plusProche);
+            }
+
             chemin.add(plusProche);
             nonVisites.remove(plusProche);
             courant = plusProche;
         }
 
-        // comme ça on ferme le circuit
+        // Fermer le cycle vers le noeud de depart.
+        // Si l'arc n'existe pas (graphe partiel), on l'ajoute.
+        if (getArc(courant, chemin.get(0)) == null) {
+            addArc(courant, chemin.get(0));
+        }
+
+        // On ferme explicitement le chemin: dernier noeud = noeud de depart.
         chemin.add(chemin.get(0));
 
         Graphe resultat = new Graphe();
         resultat.isGeo = this.isGeo;
 
-        resultat.getNoeuds().addAll(chemin); // pour ajouter les noeuds
+        // Graphe resultat = uniquement le tour construit (et ses arcs).
+        // On copie les noeuds du chemin pour isoler le resultat du graphe source.
+        for (Noeud n : chemin) {
+            resultat.getNoeuds().add(new Noeud(n.getId(), n.getAbs(), n.getOrd()));
+        }
 
-        for (int i = 0; i < chemin.size() - 1; i++) { // enfin ajouter les arcs
-            Noeud n1 = chemin.get(i);
-            Noeud n2 = chemin.get(i + 1);
-            resultat.addArc(new Noeud(n1.getId(), n1.getAbs(), n1.getOrd()), new Noeud(n2.getId(), n2.getAbs(), n2.getOrd()));
+        for (int i = 0; i < resultat.getNoeuds().size() - 1; i++) {
+            Noeud n1 = resultat.getNoeuds().get(i);
+            Noeud n2 = resultat.getNoeuds().get(i + 1);
+            resultat.addArc(n1, n2);
         }
 
         return resultat;
     }
 
+    // Construit un sous-graphe avec les nbNoeuds premiers noeuds,
+    // puis reconstruit les arcs selon le mode demande (partiel/complet).
+    private Graphe sousGraphe(int nbNoeuds, boolean modePartiel, int k) {
+        Graphe sousGraphe = new Graphe();
+        sousGraphe.isGeo = this.isGeo;
 
-    public void evaluerComplexite() {
+        int limite = Math.min(nbNoeuds, this.noeuds.size());
 
-        Graphe rechaufement = new Graphe();
-        rechaufement.isGeo = this.isGeo;
-
-        for (int i = 0; i < 100; i++) {
-            Graphe tmp = new Graphe();
-            tmp.isGeo = this.isGeo;
-
-            for (Noeud n : this.noeuds) {
-                tmp.getNoeuds().add(new Noeud(n.getId(), n.getAbs(), n.getOrd()));
+        for (int i = 0; i < limite; i++) {
+            Noeud original = this.noeuds.get(i);
+            sousGraphe.getNoeuds().add(new Noeud(original.getId(), original.getAbs(), original.getOrd()));
         }
 
-        tmp.glouton();
+        if (limite >= 2) {
+            if (modePartiel) {
+                int kLocal = k;
+                if (kLocal >= limite) {
+                    kLocal = limite - 1;
+                }
+
+                // partiel exige 1 < k < nombreNoeuds, sinon fallback en complet.
+                if (kLocal > 1 && kLocal < limite) {
+                    sousGraphe.partiel(kLocal);
+                } else {
+                    sousGraphe.complet();
+                }
+            } else {
+                sousGraphe.complet();
+            }
         }
+
+        return sousGraphe;
+    }
+
+    public void evaluerComplexite(boolean modePartiel, int k) {
+
+        // Nombre total de villes disponibles dans ce graphe.
         int nombreVilles = this.noeuds.size();
-        int[] tailles = {
-            nombreVilles / 8,
-            nombreVilles / 4,
-            nombreVilles / 2,
-            nombreVilles
-        };
+        // Tailles cibles pour l'experimentation.
+        int[] tailles = {10, 100, 500, 1000};
 
+        // Filtrer les tailles valides selon la taille reelle du graphe.
+        ArrayList<Integer> taillesValides = new ArrayList<>();
+        for (int t : tailles) {
+            if (t >= 2 && t <= nombreVilles) {
+                taillesValides.add(t);
+            }
+        }
+        if (!taillesValides.contains(nombreVilles)) {
+            // On ajoute toujours la taille maximale reelle pour avoir le cas complet.
+            taillesValides.add(nombreVilles);
+        }
+
+        // Nombre de repetitions pour lisser les variations dues a l'aleatoire.
         int repetitions = 100;
 
-        for (int nb : tailles) {
+        for (int nb : taillesValides) {
             long total = 0;
             for (int r = 0; r < repetitions; r++) {
 
-                Graphe tmp = new Graphe();
-                tmp.isGeo = this.isGeo;
-
-                for (int i = 0; i < nb; i++) {
-                    Noeud original = this.noeuds.get(i);
-                    tmp.getNoeuds().add(new Noeud(original.getId(), original.getAbs(), original.getOrd()));
-                }
+                // Important: preparation hors chrono.
+                // On mesure uniquement le temps de glouton.
+                Graphe tmp = sousGraphe(nb, modePartiel, k);
 
                 long debut = System.nanoTime();
                 tmp.glouton();
@@ -300,9 +404,12 @@ public class Graphe {
             }
 
             long moyenne = total / repetitions;
-            double tempsSec = moyenne / 1_000_000_000.0;
+            double tempsSec = moyenne / 1000000000.0;
 
-            System.out.println("nombre villes = " + nb + " | temps moyen = " + tempsSec + " s");
+            // Affichage final de la performance moyenne pour cette taille.
+            String mode = modePartiel ? "partiel(k=" + k + ")" : "complet";
+            System.out.println("glouton | mode = " + mode + " | nombre villes = " + nb + " | repetitions = " + repetitions
+                    + " | temps moyen = " + tempsSec + " s");
         }
     }
 
