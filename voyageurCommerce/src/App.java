@@ -1,71 +1,82 @@
+import java.io.FileWriter;
+import java.io.IOException;
+
 public class App {
+
+    // Genere un fichier CSV de n noeuds aleatoires.
+    // Ce fichier sert de base commune pour les tests partiel/complet.
+    public static void genererCSV(String nomFichier, int n) {
+        try (FileWriter writer = new FileWriter(nomFichier)) {
+
+            // Premiere ligne
+            writer.write("GEO\n");
+
+            for (int i = 1; i <= n; i++) {
+                // Coordonnees GEO aleatoires (x=longitude, y=latitude)
+                double x = 10 + Math.random() * 20;
+                double y = 90 + Math.random() * 10;
+
+                String ligne = i + ";" +
+                        String.format("%.2f", x).replace(".", ",") + ";" +
+                        String.format("%.2f", y).replace(".", ",") + "\n";
+
+                writer.write(ligne);
+            }
+
+            System.out.println("Fichier genere avec " + n + " noeuds !");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    } 
+
     public static void main(String[] args) throws Exception {
         System.out.println("===== TEST VOYAGEUR DE COMMERCE =====\n");
-        
-        // TEST 1 : Creation graphe avec 5 noeuds
-        System.out.println("TEST 1 : Creer graphe avec 5 noeuds");
-        Graphe g1 = new Graphe(5);
-        g1.positionner(100, 100);
-        System.out.println("  Noeuds crees : " + g1.getNoeuds().size());
-        System.out.println("  Position noeud 0 : (" + g1.getNoeudById(0).getAbs() + ", " + g1.getNoeudById(0).getOrd() + ")");
-        System.out.println("  ✓ PASS\n");
-        
-        // TEST 2 : Graphe complet
-        System.out.println("TEST 2 : Graphe complet (tous connectes)");
-        g1.complet();
-        int nbArcsComplet = g1.getArcs().size();
-        int attendu = (5 * 4) / 2;  // n(n-1)/2
-        System.out.println("  Arcs crees : " + nbArcsComplet);
-        System.out.println("  Attendu : " + attendu);
-        if (nbArcsComplet == attendu) {
-            System.out.println("  ✓ PASS\n");
+
+        // 1) Preparation des donnees de test.
+        // Meme donnee source pour rendre la comparaison plus juste.
+        genererCSV("voyageurCommerce/data/1000.csv", 1000);
+
+        // 2) Import des noeuds depuis le CSV.
+        Graphe graphe = new Graphe();
+        graphe.importer("voyageurCommerce/data/1000.csv");
+        System.out.println("Noeuds importes : " + graphe.getNoeuds().size() + "\n");
+
+        // 3) Construction d'un graphe partiel (chaque noeud relie a k voisins).
+        int k = 4;
+        System.out.println("Creation du graphe partiel avec k=" + k + "...");
+        graphe.partiel(k);
+        System.out.println("Arcs crees : " + graphe.getArcs().size() + "\n");
+
+        // 4) Resolution approchee avec le plus proche voisin (glouton).
+        // Le tour renvoye contient n+1 noeuds (retour au point de depart).
+        System.out.println("Execution de l'algorithme glouton...");
+        Graphe resultat = graphe.glouton();
+        if (resultat != null) {
+            System.out.println("Longueur du circuit : " + resultat.cout() + "\n");
         } else {
-            System.out.println("  ✗ FAIL\n");
+            System.out.println("Aucun circuit valide trouve sur ce graphe partiel.\n");
         }
-        
-        // TEST 3 : Graphe partiel
-        System.out.println("TEST 3 : Graphe partiel (k=2 voisins par noeud)");
-        Graphe g2 = new Graphe(5);
-        g2.positionner(100, 100);
-        g2.partiel(2);
-        int nbArcsPartiel = g2.getArcs().size();
-        System.out.println("  Arcs crees : " + nbArcsPartiel);
-        System.out.println("  (Doit etre <= " + (5*2) + ")");
-        if (nbArcsPartiel <= 10) {
-            System.out.println("  ✓ PASS\n");
+
+        System.out.println("Evaluation complexite sur graphe partiel...");
+        // Mesure le temps de glouton pour plusieurs tailles de sous-graphes.
+        graphe.evaluerComplexite(true, k);
+
+        // 5) Meme test sur un graphe complet pour comparer le comportement.
+        System.out.println("\n--- Test avec graphe COMPLET ---");
+        Graphe grapheComplet = new Graphe();
+        grapheComplet.importer("voyageurCommerce/data/1000.csv");
+        System.out.println("Creation du graphe complet...");
+        grapheComplet.complet();
+        System.out.println("Arcs crees : " + grapheComplet.getArcs().size());
+        Graphe resultatComplet = grapheComplet.glouton();
+        if (resultatComplet != null) {
+            System.out.println("Longueur du circuit : " + resultatComplet.cout() + "\n");
         } else {
-            System.out.println("  ✗ FAIL\n");
+            System.out.println("Aucun circuit valide trouve sur ce graphe complet.\n");
         }
-        
-        // TEST 4 : Distance entre deux noeuds
-        System.out.println("TEST 4 : Calcul de distance");
-        Noeud n1 = new Noeud(0, 0, 0);
-        Noeud n2 = new Noeud(1, 3, 4);
-        float dist = n1.distanceTo(n2);
-        System.out.println("  Noeud 0 : (0, 0)");
-        System.out.println("  Noeud 1 : (3, 4)");
-        System.out.println("  Distance : " + dist);
-        System.out.println("  Attendu : 5.0");
-        if (Math.abs(dist - 5.0) < 0.01) {
-            System.out.println("  ✓ PASS\n");
-        } else {
-            System.out.println("  ✗ FAIL\n");
-        }
-        
-        // TEST 5 : Getters Arc
-        System.out.println("TEST 5 : Getters Arc (getN1, getN2, getValeur)");
-        Arc arc = new Arc(n1, n2, 5.0f);
-        System.out.println("  N1 : " + arc.getN1().getId());
-        System.out.println("  N2 : " + arc.getN2().getId());
-        System.out.println("  Valeur : " + arc.getValeur());
-        if (arc.getN1().getId() == 0 && arc.getN2().getId() == 1 && arc.getValeur() == 5.0f) {
-            System.out.println("  ✓ PASS\n");
-        } else {
-            System.out.println("  ✗ FAIL\n");
-        }
-        
-        System.out.println("===== TESTS TERMINES =====");
-        System.out.println("\nProchaine etape : Tester avec fichier csv");
-        System.out.println("(Une fois l'algo glouton implemente)");
+
+        System.out.println("Evaluation complexite sur graphe complet...");
+        // Meme protocole, mais sur un graphe beaucoup plus dense.
+        grapheComplet.evaluerComplexite(false, 0);
     }
 }
