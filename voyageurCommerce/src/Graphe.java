@@ -365,6 +365,11 @@ public class Graphe {
 
         return sousGraphe;
     }
+<<<<<<< HEAD
+=======
+<<<<<<< Updated upstream
+=======
+>>>>>>> origin/Tyziri
 
     public void evaluerComplexite(boolean modePartiel, int k) {
 
@@ -413,4 +418,122 @@ public class Graphe {
         }
     }
 
+<<<<<<< HEAD
+=======
+    public Graphe kruskal() {
+    // Graphe qui contiendra l'arbre couvrant minimal
+    Graphe mst = new Graphe();
+    mst.isGeo = this.isGeo;
+
+    // On copie les noeuds (mais pas les arcs)
+    mst.getNoeuds().addAll(this.noeuds);
+
+    // 1️⃣ Trier les arcs par distance croissante
+    ArrayList<Arc> arcsTries = new ArrayList<>(this.arcs);
+    arcsTries.sort((a, b) -> Double.compare(a.getValeur(), b.getValeur()));
+
+    // 2️⃣ Structure Union-Find (pour éviter les cycles)
+    Map<Noeud, Noeud> parent = new HashMap<>();
+
+    // Au début chaque noeud est son propre parent
+    for (Noeud n : this.noeuds) {
+        parent.put(n, n);
+    }
+
+    // Fonction pour trouver la racine d’un noeud
+    java.util.function.Function<Noeud, Noeud> find = new java.util.function.Function<>() {
+        public Noeud apply(Noeud n) {
+            // On remonte jusqu'au parent final
+            while (parent.get(n) != n) {
+                n = parent.get(n);
+            }
+            return n;
+        }
+    };
+
+    // 3️⃣ Parcourir les arcs triés
+    for (Arc a : arcsTries) {
+
+        // Trouver les racines des deux noeuds
+        Noeud r1 = find.apply(a.getN1());
+        Noeud r2 = find.apply(a.getN2());
+
+        // Si racines différentes → pas de cycle
+        if (r1 != r2) {
+
+            // On ajoute l’arc dans le MST
+            mst.addArc(a.getN1(), a.getN2());
+
+            // On fusionne les deux ensembles
+            parent.put(r1, r2);
+        }
+    }
+
+    return mst;
+}
+
+private void dfs(Noeud n, ArrayList<Noeud> visite, ArrayList<Noeud> parcours) {
+
+    // On marque le noeud comme visité
+    visite.add(n);
+
+    // On l'ajoute au parcours
+    parcours.add(n);
+
+    // On regarde tous ses voisins
+    for (Arc a : n.getArcs()) {
+
+        // Trouver le voisin (l'autre extrémité de l'arc)
+        Noeud voisin = a.getN1().equals(n) ? a.getN2() : a.getN1();
+
+        // Si pas encore visité → on continue en profondeur
+        if (!visite.contains(voisin)) {
+            dfs(voisin, visite, parcours);
+        }
+    }
+}
+
+public Graphe mstApprox() {
+
+    // 1️⃣ Construire le MST
+    Graphe mst = this.kruskal();
+
+    // 2️⃣ DFS pour obtenir un parcours
+    ArrayList<Noeud> parcours = new ArrayList<>();
+    ArrayList<Noeud> visite = new ArrayList<>();
+
+    // On choisit un noeud de départ
+    Noeud depart = mst.getNoeuds().get(0);
+
+    mst.dfs(depart, visite, parcours);
+
+    // 3️⃣ Supprimer les doublons → chemin hamiltonien
+    ArrayList<Noeud> chemin = new ArrayList<>();
+
+    for (Noeud n : parcours) {
+        // On garde seulement la première apparition
+        if (!chemin.contains(n)) {
+            chemin.add(n);
+        }
+    }
+
+    // 4️⃣ Fermer le cycle (revenir au départ)
+    chemin.add(chemin.get(0));
+
+    // 5️⃣ Construire le graphe résultat
+    Graphe resultat = new Graphe();
+    resultat.isGeo = this.isGeo;
+
+    resultat.getNoeuds().addAll(chemin);
+
+    // Ajouter les arcs du chemin
+    for (int i = 0; i < chemin.size() - 1; i++) {
+        resultat.addArc(chemin.get(i), chemin.get(i + 1));
+    }
+
+    return resultat;
+}
+
+>>>>>>> Stashed changes
+>>>>>>> origin/Tyziri
 }
