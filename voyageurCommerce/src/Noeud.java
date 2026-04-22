@@ -1,6 +1,8 @@
 import java.util.ArrayList;
 
 public class Noeud {
+    private static final double TSPLIB_GEO_EARTH_RADIUS = 6378.388;
+
     private int id;
     private double abs;
     private double ord;
@@ -39,6 +41,13 @@ public class Noeud {
         this.ord = ord;
     }
 
+    private double geoTsplibToRadians(double valeur) {
+        int degres = (int) valeur;
+        double minutes = valeur - degres;
+        double angle = degres + (5.0 * minutes / 3.0);
+        return Math.PI * angle / 180.0;
+    }
+
     // distance jusqua noeud n
     public double distanceTo(Noeud n, boolean isGeo) {
         if (!isGeo) {
@@ -46,30 +55,23 @@ public class Noeud {
             double dOrd = this.ord - n.getOrd();
             return (double) Math.sqrt(dAbs * dAbs + dOrd * dOrd);
         } else {
-            // Rayon de la Terre en kilomètres
-            final double R = 6371.0;
+            // Format TSPLIB GEO:
+            // - 1ere coordonnee = latitude
+            // - 2eme coordonnee = longitude
+            // - chaque valeur est exprimee en degres.minutes, pas en degres decimaux.
+            double latitude1 = geoTsplibToRadians(this.abs);
+            double longitude1 = geoTsplibToRadians(this.ord);
+            double latitude2 = geoTsplibToRadians(n.getAbs());
+            double longitude2 = geoTsplibToRadians(n.getOrd());
 
-            // Conversion degrés → radians
-            // Latitude = Y
-            // Longitude = X
-            double lat1 = Math.toRadians(this.abs);
-            double lon1 = Math.toRadians(this.ord);
-            double lat2 = Math.toRadians(n.getAbs());
-            double lon2 = Math.toRadians(n.getOrd());
+            double q1 = Math.cos(longitude1 - longitude2);
+            double q2 = Math.cos(latitude1 - latitude2);
+            double q3 = Math.cos(latitude1 + latitude2);
 
-            // Différences
-            double dLat = lat2 - lat1;
-            double dLon = lon2 - lon1;
+            double expression = 0.5 * ((1.0 + q1) * q2 - (1.0 - q1) * q3);
+            expression = Math.max(-1.0, Math.min(1.0, expression));
 
-            // Formule de Haversine
-            double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-                    + Math.cos(lat1) * Math.cos(lat2)
-                            * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-
-            double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-            // Distance finale
-            return (double) (R * c);
+            return (int) (TSPLIB_GEO_EARTH_RADIUS * Math.acos(expression) + 1.0);
         }
     }
 

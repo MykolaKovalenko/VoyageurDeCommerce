@@ -1,82 +1,250 @@
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class App {
 
-    // Genere un fichier CSV de n noeuds aleatoires.
-    // Ce fichier sert de base commune pour les tests partiel/complet.
-    public static void genererCSV(String nomFichier, int n) {
-        try (FileWriter writer = new FileWriter(nomFichier)) {
+    // =========================
+    // Configuration
+    // =========================
+    // Nom du fichier CSV a tester (dans data/)
+    private static final String NOM_FICHIER_CSV = "16-points (avec-virgules).csv";
 
-            // Premiere ligne
-            writer.write("GEO\n");
+    // Generation optionnelle d'un CSV de test.
+    // true  -> genere un nouveau fichier puis l'utilise
+    // false -> utilise NOM_FICHIER_CSV
+    private static final boolean GENERER_CSV = false;
+    private static final String NOM_FICHIER_GENERE = "2Driri500.csv";
+    private static final int NOMBRE_NOEUDS_GENERES = 500;
+    // "GEO" ou "2D"
+    private static final String TYPE_CSV_GENERE = "2D";
+
+    private static final int K_VOISINS_PARTIEL = 3;
+
+    private static final boolean AFFICHER_KRUSKAL = false;
+    private static final boolean AFFICHER_MM = false;
+
+    private static final boolean BENCHMARK_KRUSKAL = false;
+    private static final boolean BENCHMARK_MM = false;
+    
+    private static final boolean TESTER_CHRISTOFIDES = true;
+    private static final boolean BENCHMARK_CHRISTOFIDES = true;
+
+    private static void afficherResultat(String nom, Graphe resultat) {
+        if (resultat == null) {
+            System.out.println(nom + ": aucun resultat");
+            return;
+        }
+        System.out.println(nom + ": noeuds=" + resultat.getNoeuds().size()
+                + " | arcs=" + resultat.getArcs().size()
+                + " | cout=" + resultat.cout());
+    }
+
+    private static void testerAlgorithmes(String label, Graphe g) {
+        System.out.println("\n--- Test sur graphe " + label + " ---");
+        System.out.println("Noeuds: " + g.getNoeuds().size() + " | Arcs: " + g.getArcs().size());
+
+        Graphe tourGlouton = g.glouton();
+        boolean besoinMst = AFFICHER_KRUSKAL || AFFICHER_MM || BENCHMARK_MM || TESTER_CHRISTOFIDES;
+        Graphe mst = besoinMst ? g.kruskal() : null;
+        Graphe mm = null;
+        String erreurMM = null;
+        if (AFFICHER_MM && mst != null) {
+            try {
+                mm = g.minimumMatching(mst);
+            } catch (IllegalStateException e) {
+                erreurMM = e.getMessage();
+            }
+        }
+        Graphe tourTspViaMst = g.mstApprox();
+        Graphe tourChristofides = null;
+        String erreurChristofides = null;
+        if (TESTER_CHRISTOFIDES) {
+            try {
+                tourChristofides = g.christofides();
+            } catch (IllegalStateException e) {
+                erreurChristofides = e.getMessage();
+            }
+        }
+
+        afficherResultat("glouton", tourGlouton);
+        if (AFFICHER_KRUSKAL && mst != null) {
+            afficherResultat("kruskal (MST, pas un TSP)", mst);
+        }
+        if (AFFICHER_MM) {
+            if (mm != null) {
+                afficherResultat("minimumMatching", mm);
+            } else {
+                System.out.println("minimumMatching: indisponible (" + erreurMM + ")");
+            }
+        }
+        afficherResultat("tsp via MST (mstApprox)", tourTspViaMst);
+        if (TESTER_CHRISTOFIDES) {
+            if (tourChristofides != null) {
+                afficherResultat("christofides", tourChristofides);
+            } else {
+                System.out.println("christofides: indisponible (" + erreurChristofides + ")");
+            }
+        }
+
+        StringBuilder benchmarkLabel = new StringBuilder("Benchmark: 100 iterations (glouton, tsp-via-MST");
+        if (BENCHMARK_KRUSKAL) {
+            benchmarkLabel.append(", kruskal/MST");
+        }
+        if (BENCHMARK_MM) {
+            benchmarkLabel.append(", MM");
+        }
+        if (BENCHMARK_CHRISTOFIDES) {
+            benchmarkLabel.append(", christofides");
+        }
+        benchmarkLabel.append(")");
+        System.out.println(benchmarkLabel.toString());
+        try {
+            g.evaluerComplexite(BENCHMARK_KRUSKAL, BENCHMARK_MM, BENCHMARK_CHRISTOFIDES);
+        } catch (IllegalStateException e) {
+            System.out.println("Benchmark partiel: MM exact/christofides indisponible sur cette taille (" + e.getMessage() + ")");
+        }
+    }
+
+    // Affiche des exemples de fichiers CSV disponibles.
+    public static void afficherFichiersDisponibles() {
+        System.out.println("\nFichiers CSV disponibles dans data/ :");
+        System.out.println("   - 14-points.csv (14 villes, rapide)");
+        System.out.println("   - 14-points (avec point et non virgule pour les doubles) (2).csv");
+        System.out.println("   - 16-points (avec-points).csv");
+        System.out.println("   - 16-points (avec-virgules).csv");
+        System.out.println("   - 52-points (avec-points).csv");
+        System.out.println("   - 52-points (avec-virgules).csv");
+        System.out.println("   - generated_*.csv (fichiers aleatoires)");
+        System.out.println("\nModifier NOM_FICHIER_CSV en haut du fichier App.java pour en choisir un.\n");
+    }
+
+    private static String formaterNombreCsv(double valeur) {
+        return String.format("%.2f", valeur).replace('.', ',');
+    }
+
+    private static double versGeoTsplib(double valeurDecimale) {
+        int degres = (int) valeurDecimale;
+        double minutes = (valeurDecimale - degres) * 60.0;
+        return degres + (minutes / 100.0);
+    }
+
+    // Genere un CSV de n noeuds en GEO ou 2D.
+    private static void genererCSV(String cheminFichier, int n, String type) {
+        String typeNormalise = type == null ? "2D" : type.trim().toUpperCase();
+        if (!"GEO".equals(typeNormalise) && !"2D".equals(typeNormalise)) {
+            throw new IllegalArgumentException("TYPE_CSV_GENERE doit etre 'GEO' ou '2D'.");
+        }
+
+        try (FileWriter writer = new FileWriter(cheminFichier)) {
+            writer.write(typeNormalise + "\n");
 
             for (int i = 1; i <= n; i++) {
-                // Coordonnees GEO aleatoires (x=longitude, y=latitude)
-                double x = 10 + Math.random() * 20;
-                double y = 90 + Math.random() * 10;
+                double x;
+                double y;
 
-                String ligne = i + ";" +
-                        String.format("%.2f", x).replace(".", ",") + ";" +
-                        String.format("%.2f", y).replace(".", ",") + "\n";
+                if ("GEO".equals(typeNormalise)) {
+                    double latitude = ThreadLocalRandom.current().nextDouble(-89.0, 89.0);
+                    double longitude = ThreadLocalRandom.current().nextDouble(-179.0, 179.0);
+                    x = versGeoTsplib(latitude);
+                    y = versGeoTsplib(longitude);
+                } else {
+                    x = Math.random() * 1000;
+                    y = Math.random() * 1000;
+                }
 
+                String ligne = i + ";"
+                        + formaterNombreCsv(x) + ";"
+                        + formaterNombreCsv(y) + "\n";
                 writer.write(ligne);
             }
-
-            System.out.println("Fichier genere avec " + n + " noeuds !");
         } catch (IOException e) {
-            e.printStackTrace();
+            System.err.println("Erreur lors de la generation du CSV : " + e.getMessage());
         }
-    } 
+    }
 
-    public static void main(String[] args) throws Exception {
+    // Resout le chemin du CSV (compatible quel que soit le dossier courant).
+    private static String resoudreChemin(String nomFichier) {
+        java.io.File fichier;
+        
+        // Essai 1: depuis la racine du projet (voyageurCommerce/data/)
+        fichier = new java.io.File("voyageurCommerce/data/" + nomFichier);
+        if (fichier.exists()) {
+            return fichier.getPath();
+        }
+        
+        // Essai 2: depuis le dossier voyageurCommerce (data/)
+        fichier = new java.io.File("data/" + nomFichier);
+        if (fichier.exists()) {
+            return fichier.getPath();
+        }
+        
+        // Par défaut, utiliser le chemin depuis la racine
+        return "voyageurCommerce/data/" + nomFichier;
+    }
+
+    // Retourne un chemin pour ecrire dans data/, selon le dossier courant.
+    private static String resoudreCheminEcritureData(String nomFichier) {
+        File dossierRacine = new File("voyageurCommerce/data");
+        if (dossierRacine.exists() && dossierRacine.isDirectory()) {
+            return new File(dossierRacine, nomFichier).getPath();
+        }
+
+        File dossierLocal = new File("data");
+        if (dossierLocal.exists() && dossierLocal.isDirectory()) {
+            return new File(dossierLocal, nomFichier).getPath();
+        }
+
+        return "voyageurCommerce/data/" + nomFichier;
+    }
+
+    // Charge un graphe depuis le CSV et applique le type de distance force si configure.
+    private static Graphe chargerGraphe(String cheminFichier) {
+        Graphe g = new Graphe();
+        g.importer(cheminFichier);
+        return g;
+    }
+
+    public static void main(String[] args) {
         System.out.println("===== TEST VOYAGEUR DE COMMERCE =====\n");
 
-        // 1) Preparation des donnees de test.
-        // Meme donnee source pour rendre la comparaison plus juste.
-        genererCSV("voyageurCommerce/data/1000.csv", 1000);
+        String nomFichierActif = GENERER_CSV ? NOM_FICHIER_GENERE : NOM_FICHIER_CSV;
 
-        // 2) Import des noeuds depuis le CSV.
-        Graphe graphe = new Graphe();
-        graphe.importer("voyageurCommerce/data/1000.csv");
-        System.out.println("Noeuds importes : " + graphe.getNoeuds().size() + "\n");
-
-        // 3) Construction d'un graphe partiel (chaque noeud relie a k voisins).
-        int k = 4;
-        System.out.println("Creation du graphe partiel avec k=" + k + "...");
-        graphe.partiel(k);
-        System.out.println("Arcs crees : " + graphe.getArcs().size() + "\n");
-
-        // 4) Resolution approchee avec le plus proche voisin (glouton).
-        // Le tour renvoye contient n+1 noeuds (retour au point de depart).
-        System.out.println("Execution de l'algorithme glouton...");
-        Graphe resultat = graphe.glouton();
-        if (resultat != null) {
-            System.out.println("Longueur du circuit : " + resultat.cout() + "\n");
-        } else {
-            System.out.println("Aucun circuit valide trouve sur ce graphe partiel.\n");
+        if (GENERER_CSV) {
+            String cheminSortie = resoudreCheminEcritureData(NOM_FICHIER_GENERE);
+            System.out.println("Generation CSV activee: " + NOM_FICHIER_GENERE
+                    + " | n=" + NOMBRE_NOEUDS_GENERES
+                    + " | type=" + TYPE_CSV_GENERE);
+            genererCSV(cheminSortie, NOMBRE_NOEUDS_GENERES, TYPE_CSV_GENERE);
         }
 
-        System.out.println("Evaluation complexite sur graphe partiel...");
-        // Mesure le temps de glouton pour plusieurs tailles de sous-graphes.
-        graphe.evaluerComplexite(true, k);
+        // Trouver le chemin correct du fichier
+        String cheminFichier = resoudreChemin(nomFichierActif);
 
-        // 5) Meme test sur un graphe complet pour comparer le comportement.
-        System.out.println("\n--- Test avec graphe COMPLET ---");
-        Graphe grapheComplet = new Graphe();
-        grapheComplet.importer("voyageurCommerce/data/1000.csv");
-        System.out.println("Creation du graphe complet...");
+        System.out.println("Fichier CSV : " + nomFichierActif);
+        System.out.println("Parametres: k=" + K_VOISINS_PARTIEL);
+
+        // 1) Chargement source
+        Graphe grapheSource = chargerGraphe(cheminFichier);
+
+        if (grapheSource.getNoeuds().isEmpty()) {
+            System.err.println("\nErreur: le fichier n'a pas pu etre charge ou est vide.");
+            afficherFichiersDisponibles();
+            return;
+        }
+
+        int n = grapheSource.getNoeuds().size();
+        System.out.println("Fichier charge avec " + n + " villes\n");
+
+        // 2) Graphe partiel
+        Graphe graphePartiel = chargerGraphe(cheminFichier);
+        graphePartiel.partiel(K_VOISINS_PARTIEL);
+        testerAlgorithmes("PARTIEL", graphePartiel);
+
+        // 3) Graphe complet
+        Graphe grapheComplet = chargerGraphe(cheminFichier);
         grapheComplet.complet();
-        System.out.println("Arcs crees : " + grapheComplet.getArcs().size());
-        Graphe resultatComplet = grapheComplet.glouton();
-        if (resultatComplet != null) {
-            System.out.println("Longueur du circuit : " + resultatComplet.cout() + "\n");
-        } else {
-            System.out.println("Aucun circuit valide trouve sur ce graphe complet.\n");
-        }
-
-        System.out.println("Evaluation complexite sur graphe complet...");
-        // Meme protocole, mais sur un graphe beaucoup plus dense.
-        grapheComplet.evaluerComplexite(false, 0);
+        testerAlgorithmes("COMPLET", grapheComplet);
     }
 }
