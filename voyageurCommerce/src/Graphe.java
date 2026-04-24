@@ -12,24 +12,26 @@ import java.util.Set;
 
 public class Graphe {
 
+    // nombre max de passes 2-opt pour eviter une boucle infinie
     private static final int MAX_2OPT_PASSES = 30;
+    // au-dela de cette taille, on desactive le 2-opt dans le benchmark (trop lent)
     private static final int MAX_NOEUDS_2OPT_BENCH = 200;
 
     // ==============================
-    // Etat interne
+    // Donnees du graphe
     // ==============================
 
-    // Liste des villes.
+    // Liste des noeuds (villes)
     private ArrayList<Noeud> noeuds;
-    // Liste de tous les arcs du graphe.
+    // Liste de tous les arcs
     private ArrayList<Arc> arcs;
-    // Index rapide des arcs avec cle "idMin-idMax" pour eviter les doublons.
+    // Index rapide avec une cle "idMin-idMax" pour pas dupliquer les arcs
     private Map<String, Arc> arcsMap;
 
-    // true: coordonnees GEO (Haversine), false: distance euclidienne.
+    // true = mode GEO, false = mode 2D euclidien
     private boolean isGeo;
 
-    // Graphe vide par defaut.
+    // Constructeur: graphe vide
     public Graphe() {
         this.noeuds = new ArrayList<>();
         this.arcs = new ArrayList<>();
@@ -48,8 +50,8 @@ public class Graphe {
         return arcs;
     }
 
-    // Cout total du graphe courant = somme des valuations de ses arcs.
-    // Sur un graphe resultat de glouton, cela correspond a la longueur du circuit.
+    // Cout total = somme des distances de tous les arcs
+    // Sur un tour TSP, ca donne la longueur du circuit
     public double cout() {
         double somme = 0;
         for (Arc a : arcs) {
@@ -58,27 +60,31 @@ public class Graphe {
         return somme;
     }
 
-    // Ajoute un arc non oriente entre n1 et n2, valorise par leur distance.
-    // Si l'arc existe deja, la methode ne fait rien.
+    // Ajoute un arc non oriente entre n1 et n2
+    // Si il existe deja, on ne fait rien
     public void addArc(Noeud n1, Noeud n2) {
 
+        // cle unique de la forme "idMin-idMax" pour retrouver l arc facilement
         int id1 = Math.min(n1.getId(), n2.getId());
         int id2 = Math.max(n1.getId(), n2.getId());
         String key = id1 + "-" + id2;
 
+        // si l arc existe deja dans la map, on sort directement
         if (arcsMap.containsKey(key))
             return;
 
+        // calcule la distance et cree l arc
         double distance = n1.distanceTo(n2, this.isGeo);
         Arc arc = new Arc(n1, n2, distance);
         arcs.add(arc);
         arcsMap.put(key, arc);
+        // on ajoute l arc aux deux noeuds pour pouvoir naviguer depuis chacun
         n1.getArcs().add(arc);
         n2.getArcs().add(arc);
     }
 
     // ==============================
-    // Helpers internes
+    // Outils internes
     // ==============================
 
     private void vider() {
@@ -93,14 +99,18 @@ public class Graphe {
         }
     }
 
+    // Prend une liste ordonnee de noeuds et construit un graphe avec les arcs entre consecutifs
+    // On clone les noeuds pour ne pas modifier le graphe source
     private Graphe construireTourDepuisChemin(ArrayList<Noeud> chemin) {
         Graphe resultat = new Graphe();
         resultat.isGeo = this.isGeo;
 
+        // clone de chaque noeud du chemin
         for (Noeud n : chemin) {
             resultat.getNoeuds().add(new Noeud(n.getId(), n.getAbs(), n.getOrd()));
         }
 
+        // relie chaque noeud avec le suivant dans l ordre du chemin
         for (int i = 0; i < resultat.getNoeuds().size() - 1; i++) {
             Noeud n1 = resultat.getNoeuds().get(i);
             Noeud n2 = resultat.getNoeuds().get(i + 1);
@@ -118,6 +128,8 @@ public class Graphe {
         return index;
     }
 
+    // Extrait la liste des IDs des noeuds dans l ordre du tour
+    // Si le tour est un cycle ferme (premier == dernier), on retire le doublon final
     private ArrayList<Integer> extraireOrdreIdsDepuisTour(Graphe tour) {
         ArrayList<Integer> ordre = new ArrayList<>();
         if (tour == null || tour.getNoeuds().isEmpty()) {
@@ -128,6 +140,7 @@ public class Graphe {
             ordre.add(n.getId());
         }
 
+        // supprime le dernier si c est le meme que le premier (tour ferme)
         if (ordre.size() > 1 && ordre.get(0).intValue() == ordre.get(ordre.size() - 1).intValue()) {
             ordre.remove(ordre.size() - 1);
         }
@@ -153,22 +166,27 @@ public class Graphe {
         }
     }
 
+    // Ameliore un tour TSP en echangeant des paires d arcs (algorithme 2-opt)
+    // Principe: si croiser deux arcs coute moins cher, on les inverse
     public Graphe deuxOpt(Graphe tour) {
         if (tour == null || tour.getNoeuds().size() < 5) {
             return tour;
         }
 
+        // on travaille sur la liste des IDs dans l ordre du tour
         ArrayList<Integer> ordre = extraireOrdreIdsDepuisTour(tour);
         int taille = ordre.size();
         if (taille < 4) {
             return tour;
         }
 
+        // index id -> noeud pour calculer les distances rapidement
         Map<Integer, Noeud> noeudsParId = indexNoeudsParId();
 
         boolean amelioration = true;
         int passe = 0;
 
+        // on repete tant qu on trouve une amelioration (ou max de passes atteint)
         while (amelioration && passe < MAX_2OPT_PASSES) {
             amelioration = false;
             passe++;
@@ -177,23 +195,27 @@ public class Graphe {
                 boolean ameliorationLocale = false;
 
                 for (int j = i + 1; j < taille; j++) {
+                    // arcs adjacents: pas de gain possible
                     if (j == i + 1) {
                         continue;
                     }
 
-                    // Eviter le cas degeneré qui inverse tout le cycle sans gain structurel.
+                    // Evite un cas un peu degenerate: on retournerait presque tout le cycle pour rien
                     if (i == 1 && j == taille - 1) {
                         continue;
                     }
 
+                    // les 4 noeuds autour des deux arcs candidats a l echange
                     int a = ordre.get(i - 1);
                     int b = ordre.get(i);
                     int c = ordre.get(j);
                     int d = ordre.get((j + 1) % taille);
 
+                    // compare le cout actuel (a-b + c-d) vs le cout apres echange (a-c + b-d)
                     double ancienCout = distanceEntreIds(a, b, noeudsParId) + distanceEntreIds(c, d, noeudsParId);
                     double nouveauCout = distanceEntreIds(a, c, noeudsParId) + distanceEntreIds(b, d, noeudsParId);
 
+                    // si c est mieux, on inverse la sous-sequence entre i et j
                     if (nouveauCout + 1e-9 < ancienCout) {
                         inverserSousSequence(ordre, i, j);
                         amelioration = true;
@@ -202,12 +224,14 @@ public class Graphe {
                     }
                 }
 
+                // une amelioration trouvee: on repart depuis le debut
                 if (ameliorationLocale) {
                     break;
                 }
             }
         }
 
+        // reconstruit le chemin depuis les IDs dans le nouvel ordre
         ArrayList<Noeud> chemin = new ArrayList<>();
         for (int id : ordre) {
             Noeud source = noeudsParId.get(id);
@@ -222,19 +246,19 @@ public class Graphe {
     }
 
     // ==============================
-    // Chargement depuis CSV
+    // Chargement CSV
     // ==============================
 
-    // Importe les noeuds depuis un CSV de format:
+    // Format attendu du CSV:
     // 1ere ligne: GEO ou 2D
-    // lignes suivantes: id;abs;ord
+    // ensuite: id;abs;ord
     public void importer(String nomFichier) {
-        // Repartir d'un etat propre pour eviter l'accumulation apres plusieurs imports.
+        // On vide avant de charger, sinon on accumule les anciens noeuds
         this.vider();
         Set<Integer> ids = new HashSet<>();
 
         try (BufferedReader br = new BufferedReader(new FileReader(nomFichier))) {
-            // La 1ere ligne du fichier indique le type de distance a utiliser.
+            // La 1ere ligne dit si on est en GEO ou 2D
             String premiereLigne = br.readLine();
             if (premiereLigne == null) {
                 throw new IllegalArgumentException("Le fichier est vide");
@@ -251,7 +275,7 @@ public class Graphe {
 
             String ligne;
             int numeroLigne = 1;
-            // on lit toutes les lignes jusque a la fin du fichier
+            // on lit les lignes jusqu a la fin
             while ((ligne = br.readLine()) != null) {
                 numeroLigne++;
                 ligne = ligne.trim();
@@ -260,9 +284,9 @@ public class Graphe {
                     continue;
                 }
 
-                // on divise la ligne en morceaux avec ;
+                // on coupe la ligne avec ;
                 String[] p = ligne.split(";");
-                // on verifie qu'il y a exactement 3 valeurs
+                // il faut exactement 3 colonnes
                 if (p.length != 3) {
                     throw new IllegalArgumentException("Ligne " + numeroLigne + " invalide: format attendu id;abs;ord");
                 }
@@ -271,10 +295,9 @@ public class Graphe {
                 double abs;
                 double ord;
                 try {
-                    // Format attendu: id;abs;ord
+                    // format: id;abs;ord
                     id = Integer.parseInt(p[0].trim());
-                    // remplace une virgule par un point, ex : 95,59 -> 95.59
-                    // si deja avec un point donc on ne touche pas, ex 95.59 -> 95.59
+                    // accepte 95,59 et 95.59 en remplacant la virgule par un point
                     abs = Double.parseDouble(p[1].trim().replace(",", "."));
                     ord = Double.parseDouble(p[2].trim().replace(",", "."));
                 } catch (NumberFormatException e) {
@@ -296,7 +319,7 @@ public class Graphe {
                     }
                 }
 
-                // Chaque ligne devient un objet Noeud.
+                // chaque ligne devient un Noeud
                 noeuds.add(new Noeud(id, abs, ord));
             }
         } catch (IOException e) {
@@ -309,11 +332,11 @@ public class Graphe {
     }
 
     // ==============================
-    // Types de graphes
+    // Construction de graphes
     // ==============================
 
-    // Cree un graphe complet: chaque paire de noeuds est reliee.
-    // Nombre d'arcs attendu: n*(n-1)/2.
+    // Graphe complet: chaque paire de noeuds est reliee
+    // Nombre d'arcs attendu: n*(n-1)/2
     public void complet() {
         for (int i = 0; i < noeuds.size(); i++) {
             for (int j = i + 1; j < noeuds.size(); j++) {
@@ -328,23 +351,22 @@ public class Graphe {
             return;
         }
 
-        // Pour chaque noeud, on ajoute des arcs vers ses k plus proches voisins.
+        // Pour chaque noeud, on relie les k voisins les plus proches
         for (Noeud n1 : noeuds) {
-            // Liste des candidats encore disponibles autour de n1.
+            // Candidats pas encore choisis autour de n1
             ArrayList<Noeud> nonVisites = new ArrayList<>(this.noeuds);
-            // On retire n1 lui-meme: un noeud n'est pas voisin de lui-meme.
+            // n1 ne peut pas etre son propre voisin
             nonVisites.remove(n1);
 
-            // Selection gloutonne locale des k voisins les plus proches.
+            // Petit glouton local: on prend les k plus proches
             for (int i = 0; i < k; i++) {
                 Noeud plusProche = null;
                 double minDistance = Double.MAX_VALUE;
 
-                // Cherche le plus proche qui n'est pas encore connecte a n1
+                // cherche le plus proche restant
                 for (Noeud n2 : nonVisites) {
-                    // si c'est pas le meme noeud ET qu'il y a pas deja un arc entre eux
                     double dist = n1.distanceTo(n2, this.isGeo);
-                    // Garder celui avec la plus petite distance
+                    // on garde le plus petit
                     if (dist < minDistance) {
                         minDistance = dist;
                         plusProche = n2;
@@ -352,8 +374,7 @@ public class Graphe {
                 }
 
                 if (plusProche != null) {
-                    // On ajoute l'arc (si absent) puis on retire ce voisin des candidats
-                    // pour obtenir les k plus proches distincts.
+                    // on ajoute l'arc puis on retire ce voisin des candidats
                     addArc(n1, plusProche);
                     nonVisites.remove(plusProche);
                 }
@@ -361,20 +382,25 @@ public class Graphe {
         }
     }
 
-    // Trouve la racine d'un noeud avec compression de chemin.
+    // Union-Find: trouve la racine du groupe avec compression de chemin
+    // La compression: on redirige directement n vers sa racine pour accelerer les prochains appels
     private Noeud find(Map<Noeud, Noeud> parent, Noeud n) {
         Noeud p = parent.get(n);
+        // si n n est pas sa propre racine, on cherche recursivement
         if (p != n) {
+            // compression: on met a jour le parent directement vers la racine
             parent.put(n, find(parent, p));
         }
         return parent.get(n);
     }
 
-    // Fusionne deux ensembles Union-Find avec union par rang.
+    // Union-Find: fusion de deux ensembles (union par rang)
+    // On attache le plus petit arbre sous le plus grand pour rester efficace
     private void union(Map<Noeud, Noeud> parent, Map<Noeud, Integer> rank, Noeud a, Noeud b) {
         Noeud racineA = find(parent, a);
         Noeud racineB = find(parent, b);
 
+        // deja dans le meme groupe, rien a faire
         if (racineA == racineB) {
             return;
         }
@@ -382,17 +408,19 @@ public class Graphe {
         int rankA = rank.get(racineA);
         int rankB = rank.get(racineB);
 
+        // on attache le plus petit sous le plus grand
         if (rankA < rankB) {
             parent.put(racineA, racineB);
         } else if (rankA > rankB) {
             parent.put(racineB, racineA);
         } else {
+            // rang egal: on choisit et on incremente le rang du nouveau parent
             parent.put(racineB, racineA);
             rank.put(racineA, rankA + 1);
         }
     }
 
-    // Retourne les noeuds de degre impair d'un graphe.
+    // Retourne les noeuds de degre impair
     private ArrayList<Noeud> noeudsDegreImpair(Graphe g) {
         ArrayList<Noeud> impairs = new ArrayList<>();
         for (Noeud n : g.getNoeuds()) {
@@ -403,9 +431,9 @@ public class Graphe {
         return impairs;
     }
 
-    // Minimum perfect matching EXACT sur les noeuds de degre impair du MST.
-    // Implementation: DP sur bitmask (complexite exponentielle en nb de noeuds impairs).
-    // Pour rester praticable en memoire, on limite a 22 noeuds impairs.
+    // Matching parfait minimum exact sur les noeuds impairs du MST
+    // Implementation en DP bitmask (ca coute cher quand ca grossit)
+    // On limite a 22 noeuds impairs pour rester gerable
     public Graphe minimumMatching(Graphe mst) {
         Graphe matching = new Graphe();
 
@@ -415,7 +443,7 @@ public class Graphe {
 
         matching.isGeo = mst.isGeo;
 
-        // Copier tous les noeuds du MST pour garder des IDs compatibles pour la suite.
+        // Copie des noeuds du MST pour garder les memes IDs
         Map<Integer, Noeud> copieNoeuds = new HashMap<>();
         for (Noeud original : mst.getNoeuds()) {
             Noeud clone = new Noeud(original.getId(), original.getAbs(), original.getOrd());
@@ -423,7 +451,7 @@ public class Graphe {
             copieNoeuds.put(clone.getId(), clone);
         }
 
-        // Recuperer uniquement les noeuds de degre impair du MST.
+        // On prend seulement les noeuds impairs
         ArrayList<Noeud> impairs = noeudsDegreImpair(mst);
 
         if (impairs.isEmpty()) {
@@ -451,18 +479,24 @@ public class Graphe {
             }
         }
 
+        // fullMask = tous les bits a 1, represente tous les noeuds impairs
         int fullMask = (1 << m) - 1;
+        // memo[mask] = cout minimum pour apparier les noeuds du masque
         double[] memo = new double[1 << m];
+        // choix[mask] = indice j du noeud apparie avec le premier bit de mask
         int[] choix = new int[1 << m];
-        Arrays.fill(memo, Double.NaN);
-        Arrays.fill(choix, -1);
+        Arrays.fill(memo, Double.NaN); // NaN = pas encore calcule
+        Arrays.fill(choix, -1);        // -1 = pas encore de choix
 
-        // Lance la DP pour remplir memo/choix.
+        // Lance la DP et remplit memo/choix
         coutMatchingExactDp(fullMask, dist, memo, choix);
 
-        // Reconstruire le matching optimal a partir des choix memorises.
+        // Reconstruit le matching optimal depuis les choix memorises
+        // a chaque iteration: on prend le premier noeud disponible (bit le plus bas)
+        // et on l apparie avec le noeud j enregistre dans choix[mask]
         int mask = fullMask;
         while (mask != 0) {
+            // indice du premier noeud impair encore a apparier
             int i = Integer.numberOfTrailingZeros(mask);
             int j = choix[mask];
             if (j < 0) {
@@ -473,6 +507,7 @@ public class Graphe {
                     copieNoeuds.get(impairs.get(i).getId()),
                     copieNoeuds.get(impairs.get(j).getId()));
 
+            // retire i et j du mask: ils sont apparies
             mask = mask & ~(1 << i);
             mask = mask & ~(1 << j);
         }
@@ -480,28 +515,35 @@ public class Graphe {
         return matching;
     }
 
-    // DP de matching parfait minimum.
-    // mask encode l'ensemble des indices impairs restant a apparier.
+    // DP du matching: mask represente les indices impairs encore a apparier
+    // Principe: on prend le premier bit du mask, on l apparie avec chaque autre bit possible
+    // et on garde la combinaison qui minimise le cout total
     private double coutMatchingExactDp(int mask, double[][] dist, double[] memo, int[] choix) {
+        // plus rien a apparier
         if (mask == 0) {
             return 0.0;
         }
 
+        // resultat deja calcule: on le reutilise directement (memoisation)
         if (!Double.isNaN(memo[mask])) {
             return memo[mask];
         }
 
+        // prend le premier noeud impair encore dans le mask
         int i = Integer.numberOfTrailingZeros(mask);
+        // mask sans le noeud i
         int maskSansI = mask & ~(1 << i);
 
         double best = Double.POSITIVE_INFINITY;
         int bestJ = -1;
 
+        // essaie d apparier i avec chaque autre j encore dans le mask
         for (int j = i + 1; j < dist.length; j++) {
             if ((maskSansI & (1 << j)) == 0) {
                 continue;
             }
 
+            // mask restant apres avoir apparie i et j
             int suivant = maskSansI & ~(1 << j);
             double cout = dist[i][j] + coutMatchingExactDp(suivant, dist, memo, choix);
 
@@ -511,48 +553,48 @@ public class Graphe {
             }
         }
 
+        // sauvegarde le meilleur choix et le cout pour ce mask
         choix[mask] = bestJ;
         memo[mask] = best;
         return best;
     }
 
     // ==============================
-    // Algorithmes TSP / auxiliaires
+    // Algo TSP
     // ==============================
 
     public Graphe glouton() {
-        // Cas limite: pas de noeuds, pas de tour.
+        // Cas limite: pas de noeud -> pas de tour
         if (noeuds.isEmpty()) {
             return null;
         }
 
-        // chemin: ordre de visite construit par l'algorithme.
+        // chemin = ordre de visite qu on construit
         ArrayList<Noeud> chemin = new ArrayList<>();
-        // nonVisites: ensemble des noeuds qu'il reste a visiter.
+        // noeuds qu il reste a visiter
         ArrayList<Noeud> nonVisites = new ArrayList<>(noeuds);
         Set<Noeud> nonVisitesSet = new HashSet<>(nonVisites);
 
-        // Le depart est aleatoire.
-        // Cela evite de toujours produire exactement le meme tour.
+        // depart aleatoire pour eviter toujours le meme tour
         int index = (int) (Math.random() * nonVisites.size());
         Noeud courant = nonVisites.get(index);
         chemin.add(courant);
         nonVisites.remove(courant);
         nonVisitesSet.remove(courant);
 
-        // A chaque etape on va au plus proche voisin non visite.
+        // a chaque etape on prend le voisin non visite le plus proche
         while (!nonVisites.isEmpty()) {
             Noeud plusProche = null;
             double minDistance = Double.MAX_VALUE;
 
-            // Parcourir les arcs du noeud courant pour trouver le plus proche voisin connecte.
+            // on regarde les arcs du noeud courant
             for (Arc arc : courant.getArcs()) {
-                // Recuperer l'autre extremite de l'arc.
+                // on recupere l autre extremite de l arc
                 Noeud voisin = arc.getN1().getId() == courant.getId() ? arc.getN2() : arc.getN1();
 
-                // Si ce voisin n'a pas ete visite.
+                // si pas encore visite
                 if (nonVisitesSet.contains(voisin)) {
-                    // La valeur de l'arc est deja la distance entre courant et voisin.
+                    // la distance est deja stockee dans l arc
                     double dist = arc.getValeur();
                     if (dist < minDistance) {
                         minDistance = dist;
@@ -561,11 +603,10 @@ public class Graphe {
                 }
             }
 
-            // Si le graphe partiel bloque, on choisit le plus proche non visite
-            // sans modifier le graphe source.
+            // fallback: si graphe partiel bloque, on calcule direct les distances
             if (plusProche == null) {
                 for (Noeud n : nonVisites) {
-                    // Distance geometrique directe en fallback.
+                    // distance geometrique directe
                     double dist = courant.distanceTo(n, this.isGeo);
                     if (dist < minDistance) {
                         minDistance = dist;
@@ -584,14 +625,17 @@ public class Graphe {
             courant = plusProche;
         }
 
-        // On ferme explicitement le chemin: dernier noeud = noeud de depart.
+        // ferme le tour en revenant au depart
         fermerCycle(chemin);
         return construireTourDepuisChemin(chemin);
     }
 
+    // Lance des benchmarks sur les algos TSP: mesure les temps d execution et les couts
+    // sur 100 repetitions pour avoir des moyennes stables
     public void evaluerComplexite(boolean benchmarkKruskal, boolean benchmarkMM, boolean benchmarkChristofides) {
         int n = this.noeuds.size();
         int repetitions = 100;
+        // 2-opt desactive si trop de noeuds (sinon ca prend trop de temps)
         boolean mesurer2Opt = n <= MAX_NOEUDS_2OPT_BENCH;
         long totalGlouton = 0;
         long totalGlouton2Opt = 0;
@@ -619,7 +663,7 @@ public class Graphe {
         double sommeChristofides2Opt = 0.0;
         int nbChristofides2OptValides = 0;
 
-        // 100 iterations glouton
+        // 100 runs glouton
         for (int r = 0; r < repetitions; r++) {
             long debut = System.nanoTime();
             Graphe tourGlouton = this.glouton();
@@ -647,7 +691,7 @@ public class Graphe {
             }
         }
 
-        // 100 iterations kruskal (MST)
+        // 100 runs kruskal (MST)
         if (benchmarkKruskal) {
             for (int r = 0; r < repetitions; r++) {
                 long debut = System.nanoTime();
@@ -656,7 +700,7 @@ public class Graphe {
             }
         }
 
-        // 100 iterations TSP via MST (mstApprox)
+        // 100 runs TSP via MST (mstApprox)
         for (int r = 0; r < repetitions; r++) {
             long debut = System.nanoTime();
             Graphe tourMst = this.mstApprox();
@@ -673,7 +717,7 @@ public class Graphe {
             }
         }
 
-        // 100 iterations minimumMatching (MST pre-calcule hors mesure)
+        // 100 runs minimumMatching (MST calcule hors chrono)
         if (benchmarkMM) {
             for (int r = 0; r < repetitions; r++) {
                 Graphe mst = this.kruskal();
@@ -683,7 +727,7 @@ public class Graphe {
             }
         }
 
-        // 100 iterations pipeline complet MST + MM
+        // 100 runs pipeline complet MST + MM
         if (benchmarkMM) {
             for (int r = 0; r < repetitions; r++) {
                 long debut = System.nanoTime();
@@ -693,7 +737,7 @@ public class Graphe {
             }
         }
 
-        // 100 iterations Christofides (pipeline complet TSP)
+        // 100 runs Christofides (pipeline complet TSP)
         if (benchmarkChristofides) {
             for (int r = 0; r < repetitions; r++) {
                 long debut = System.nanoTime();
@@ -712,6 +756,7 @@ public class Graphe {
             }
         }
 
+        // nanoTime en nanosecondes -> divise par 10^9 pour avoir des secondes
         double sGlouton = (totalGlouton / (double) repetitions) / 1_000_000_000.0;
         double sGlouton2OptSeul = mesurer2Opt
             ? (totalGlouton2Opt / (double) repetitions) / 1_000_000_000.0
@@ -801,11 +846,11 @@ public class Graphe {
     }
 
     public Graphe kruskal() {
-        // Graphe qui contiendra l'arbre couvrant minimal
+        // graphe resultat pour stocker le MST
         Graphe mst = new Graphe();
         mst.isGeo = this.isGeo;
 
-        // Cloner les noeuds pour ne pas partager les objets avec le graphe source.
+        // on clone les noeuds pour pas melanger avec le graphe source
         Map<Integer, Noeud> copieNoeuds = new HashMap<>();
         for (Noeud original : this.noeuds) {
             Noeud clone = new Noeud(original.getId(), original.getAbs(), original.getOrd());
@@ -813,39 +858,39 @@ public class Graphe {
             copieNoeuds.put(clone.getId(), clone);
         }
 
-        // 1) Trier les arcs par distance croissante
+        // 1) tri des arcs par distance croissante
         ArrayList<Arc> arcsTries = new ArrayList<>(this.arcs);
         arcsTries.sort((a, b) -> Double.compare(a.getValeur(), b.getValeur()));
 
-        // 2) Structure Union-Find (pour eviter les cycles)
+        // 2) Union-Find pour eviter les cycles
         Map<Noeud, Noeud> parent = new HashMap<>();
         Map<Noeud, Integer> rank = new HashMap<>();
 
-        // Au début chaque noeud est son propre parent
+        // au debut chaque noeud est son propre parent
         for (Noeud n : this.noeuds) {
             parent.put(n, n);
             rank.put(n, 0);
         }
 
-        // 3) Parcourir les arcs tries
+        // 3) parcourir les arcs tries
         for (Arc a : arcsTries) {
 
-            // Trouver les racines des deux noeuds
+            // trouve les racines des deux noeuds
             Noeud r1 = find(parent, a.getN1());
             Noeud r2 = find(parent, a.getN2());
 
-            // Si racines différentes → pas de cycle
+            // racines differentes -> pas de cycle
             if (r1 != r2) {
 
-                // On ajoute l'arc avec les noeuds clones du MST.
+                // ajoute l arc en utilisant les noeuds clones du MST
                 Noeud n1Mst = copieNoeuds.get(a.getN1().getId());
                 Noeud n2Mst = copieNoeuds.get(a.getN2().getId());
                 mst.addArc(n1Mst, n2Mst);
 
-                // On fusionne les deux ensembles
+                // fusion des deux ensembles
                 union(parent, rank, r1, r2);
 
-                // Un arbre couvrant sur n noeuds contient exactement n-1 arcs.
+                // un MST sur n noeuds a exactement n-1 arcs
                 if (mst.getArcs().size() == this.noeuds.size() - 1) {
                     break;
                 }
@@ -857,19 +902,19 @@ public class Graphe {
 
     private void dfs(Noeud n, Set<Noeud> visite, ArrayList<Noeud> parcours) {
 
-        // On marque le noeud comme visité
+        // marque le noeud comme visite
         visite.add(n);
 
-        // On l'ajoute au parcours
+        // ajoute le noeud au parcours
         parcours.add(n);
 
-        // On regarde tous ses voisins
+        // regarde tous ses voisins
         for (Arc a : n.getArcs()) {
 
-            // Trouver le voisin (l'autre extrémité de l'arc)
+            // trouve le voisin (autre extremite de l arc)
             Noeud voisin = a.getN1().equals(n) ? a.getN2() : a.getN1();
 
-            // Si pas encore visité → on continue en profondeur
+            // si pas encore visite, on continue en profondeur
             if (!visite.contains(voisin)) {
                 dfs(voisin, visite, parcours);
             }
@@ -878,50 +923,49 @@ public class Graphe {
 
     public Graphe mstApprox() {
 
-        // 1) Construire le MST
+        // 1) construire le MST
         Graphe mst = this.kruskal();
 
         if (mst.getNoeuds().isEmpty()) {
             return mst;
         }
 
-        // 2) DFS pour obtenir un parcours
+        // 2) DFS pour obtenir un ordre de parcours
         ArrayList<Noeud> parcours = new ArrayList<>();
         Set<Noeud> visite = new HashSet<>();
 
-        // Parcours DFS de toutes les composantes pour ne pas perdre de noeuds
-        // si le graphe est deconnecte.
+        // on lance DFS sur toutes les composantes si le graphe est deconnecte
         for (Noeud depart : mst.getNoeuds()) {
             if (!visite.contains(depart)) {
                 mst.dfs(depart, visite, parcours);
             }
         }
 
-        // 3) Supprimer les doublons -> chemin hamiltonien
+        // 3) supprime les doublons -> chemin hamiltonien
         ArrayList<Noeud> chemin = new ArrayList<>();
         Set<Noeud> dejaAjoutes = new HashSet<>();
 
         for (Noeud n : parcours) {
-            // On garde seulement la premiere apparition.
+            // on garde juste la 1ere apparition
             if (dejaAjoutes.add(n)) {
                 chemin.add(n);
             }
         }
 
-        // 4) Fermer le cycle (revenir au depart)
+        // 4) fermer le cycle (retour depart)
         fermerCycle(chemin);
 
-        // 5) Construire le graphe resultat
+        // 5) construire le graphe resultat
         return construireTourDepuisChemin(chemin);
     }
 
-    // Circuit eulerien par l'algorithme de Hierholzer sur un multigraphe.
-    // Precondition: tous les noeuds ont un degre pair.
-    // Retourne la liste ordonnee des noeuds formant le circuit.
+    // Circuit eulerien avec Hierholzer sur un multigraphe
+    // Precondition: tous les noeuds doivent avoir un degre pair
+    // Retourne la liste ordonnee des noeuds du circuit
     private ArrayList<Noeud> hierholzer(Map<Integer, Noeud> noeudsParId, ArrayList<Arc> arcs) {
 
-        // Liste d'adjacence: id -> liste de [idVoisin, indexArc].
-        // Chaque arc non oriente apparait deux fois (une par extremite).
+        // Liste d adjacence: id -> [idVoisin, indexArc]
+        // Chaque arc non oriente apparait 2 fois (une fois par extremite)
         Map<Integer, ArrayList<int[]>> adj = new HashMap<>();
         for (int i = 0; i < arcs.size(); i++) {
             Arc a = arcs.get(i);
@@ -931,19 +975,19 @@ public class Graphe {
             adj.computeIfAbsent(id2, x -> new ArrayList<>()).add(new int[] { id1, i });
         }
 
-        // arcUtilise[i] = true si l'arc d'index i a deja ete emprunte.
+        // arcUtilise[i] = true si l arc i a deja ete pris
         boolean[] arcUtilise = new boolean[arcs.size()];
 
-        // Pointeur par noeud: evite de re-scanner les arcs deja utilises.
+        // pointeur par noeud pour eviter de rescanner des arcs deja utilises
         Map<Integer, Integer> ptr = new HashMap<>();
         for (int id : adj.keySet()) {
             ptr.put(id, 0);
         }
 
-        // Depart: premier noeud disponible.
+        // depart: premier noeud dispo
         int depart = noeudsParId.keySet().iterator().next();
 
-        // Pile de Hierholzer (version iterative pour eviter les debordements de pile).
+        // pile de Hierholzer (version iterative)
         Deque<Integer> pile = new ArrayDeque<>();
         ArrayList<Noeud> circuit = new ArrayList<>();
         pile.push(depart);
@@ -953,17 +997,17 @@ public class Graphe {
             ArrayList<int[]> voisins = adj.getOrDefault(v, new ArrayList<>());
             int p = ptr.getOrDefault(v, 0);
 
-            // Avancer le pointeur jusqu'au prochain arc non utilise.
+            // avance jusqu au prochain arc non utilise
             while (p < voisins.size() && arcUtilise[voisins.get(p)[1]]) {
                 p++;
             }
             ptr.put(v, p);
 
             if (p == voisins.size()) {
-                // Plus d'arcs disponibles depuis v: on l'ajoute au circuit.
+                // plus d arc depuis v -> on l ajoute au circuit
                 circuit.add(noeudsParId.get(pile.pop()));
             } else {
-                // Emprunter l'arc vers le voisin.
+                // emprunte l arc vers le voisin
                 int[] suivant = voisins.get(p);
                 arcUtilise[suivant[1]] = true;
                 ptr.put(v, p + 1);
@@ -974,32 +1018,32 @@ public class Graphe {
         return circuit;
     }
 
-    // Algorithme de Christofides:
-    // 1. MST de Kruskal
-    // 2. Minimum matching sur les noeuds impairs du MST
-    // 3. Fusion MST + matching en multigraphe (tous les degres deviennent pairs)
-    // 4. Circuit eulerien (Hierholzer)
-    // 5. Shortcut des repetitions → tour hamiltonien
+    // Algo de Christofides:
+    // 1) MST
+    // 2) matching minimum sur noeuds impairs
+    // 3) fusion en multigraphe (degres pairs)
+    // 4) circuit eulerien
+    // 5) shortcut -> tour hamiltonien
     public Graphe christofides() {
 
         if (noeuds.isEmpty()) {
             return null;
         }
 
-        // 1. MST
+        // 1) MST
         Graphe mst = this.kruskal();
 
-        // 2. Minimum matching sur les noeuds impairs du MST
+        // 2) matching minimum sur noeuds impairs
         Graphe mm = this.minimumMatching(mst);
 
-        // 3. Construire le multigraphe MST + MM.
-        // On mappe les IDs vers les noeuds du graphe source pour avoir les bonnes coords.
+        // 3) construit le multigraphe MST + MM
+        // on mappe les IDs vers les noeuds source pour garder les bonnes coordonnees
         Map<Integer, Noeud> noeudsParId = new HashMap<>();
         for (Noeud n : this.noeuds) {
             noeudsParId.put(n.getId(), n);
         }
 
-        // Accumuler tous les arcs du MST et du matching.
+        // ajoute tous les arcs du MST puis du matching
         ArrayList<Arc> tousArcs = new ArrayList<>();
         for (Arc a : mst.getArcs()) {
             Noeud n1 = noeudsParId.get(a.getN1().getId());
@@ -1016,14 +1060,14 @@ public class Graphe {
             return null;
         }
 
-        // 4. Circuit eulerien sur le multigraphe.
+        // 4) circuit eulerien sur le multigraphe
         ArrayList<Noeud> circuit = hierholzer(noeudsParId, tousArcs);
 
         if (circuit.isEmpty()) {
             return null;
         }
 
-        // 5. Shortcut: garder seulement la premiere apparition de chaque noeud.
+        // 5) shortcut: on garde la 1ere apparition de chaque noeud
         ArrayList<Noeud> chemin = new ArrayList<>();
         Set<Integer> dejaVus = new HashSet<>();
         for (Noeud n : circuit) {
@@ -1032,10 +1076,10 @@ public class Graphe {
             }
         }
 
-        // Fermer le cycle.
+        // ferme le cycle
         fermerCycle(chemin);
 
-        // 6. Construire le graphe resultat.
+        // 6) construit le graphe resultat
         return construireTourDepuisChemin(chemin);
     }
 

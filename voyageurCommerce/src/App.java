@@ -6,18 +6,18 @@ import java.util.concurrent.ThreadLocalRandom;
 public class App {
 
     // =========================
-    // Configuration
+    // Config du test
     // =========================
-    // Nom du fichier CSV a tester (dans data/)
+    // CSV a tester (dans data/)
     private static final String NOM_FICHIER_CSV = "16-points (avec-virgules).csv";
 
-    // Generation optionnelle d'un CSV de test.
+    // Generation optionelle d'un CSV de test.
     // true  -> genere un nouveau fichier puis l'utilise
-    // false -> utilise NOM_FICHIER_CSV
+    // false -> garde NOM_FICHIER_CSV
     private static final boolean GENERER_CSV = false;
     private static final String NOM_FICHIER_GENERE = "2Driri500.csv";
     private static final int NOMBRE_NOEUDS_GENERES = 500;
-    // "GEO" ou "2D"
+    // Type du fichier genere: "GEO" ou "2D"
     private static final String TYPE_CSV_GENERE = "2D";
 
     private static final int K_VOISINS_PARTIEL = 3;
@@ -107,7 +107,7 @@ public class App {
         }
     }
 
-    // Affiche des exemples de fichiers CSV disponibles.
+    // Affiche quelques CSV dispo dans data/.
     public static void afficherFichiersDisponibles() {
         System.out.println("\nFichiers CSV disponibles dans data/ :");
         System.out.println("   - 14-points.csv (14 villes, rapide)");
@@ -130,7 +130,7 @@ public class App {
         return degres + (minutes / 100.0);
     }
 
-    // Genere un CSV de n noeuds en GEO ou 2D.
+    // Genere un CSV de n noeuds en GEO ou en 2D.
     private static void genererCSV(String cheminFichier, int n, String type) {
         String typeNormalise = type == null ? "2D" : type.trim().toUpperCase();
         if (!"GEO".equals(typeNormalise) && !"2D".equals(typeNormalise)) {
@@ -164,7 +164,7 @@ public class App {
         }
     }
 
-    // Resout le chemin du CSV (compatible quel que soit le dossier courant).
+    // Trouve le bon chemin du CSV (peu importe le dossier courant).
     private static String resoudreChemin(String nomFichier) {
         java.io.File fichier;
         
@@ -180,11 +180,11 @@ public class App {
             return fichier.getPath();
         }
         
-        // Par défaut, utiliser le chemin depuis la racine
+        // Sinon on retourne le chemin "racine" par defaut
         return "voyageurCommerce/data/" + nomFichier;
     }
 
-    // Retourne un chemin pour ecrire dans data/, selon le dossier courant.
+    // Retourne un chemin d'ecriture dans data/ selon ou on lance le prog.
     private static String resoudreCheminEcritureData(String nomFichier) {
         File dossierRacine = new File("voyageurCommerce/data");
         if (dossierRacine.exists() && dossierRacine.isDirectory()) {
@@ -199,7 +199,7 @@ public class App {
         return "voyageurCommerce/data/" + nomFichier;
     }
 
-    // Charge un graphe depuis le CSV et applique le type de distance force si configure.
+    // Charge un graphe depuis un CSV.
     private static Graphe chargerGraphe(String cheminFichier) {
         Graphe g = new Graphe();
         g.importer(cheminFichier);
@@ -219,13 +219,13 @@ public class App {
             genererCSV(cheminSortie, NOMBRE_NOEUDS_GENERES, TYPE_CSV_GENERE);
         }
 
-        // Trouver le chemin correct du fichier
+        // Trouver le bon chemin du fichier
         String cheminFichier = resoudreChemin(nomFichierActif);
 
         System.out.println("Fichier CSV : " + nomFichierActif);
         System.out.println("Parametres: k=" + K_VOISINS_PARTIEL);
 
-        // 1) Chargement source
+        // 1) Chargement du graphe source
         Graphe grapheSource = chargerGraphe(cheminFichier);
 
         if (grapheSource.getNoeuds().isEmpty()) {
@@ -237,12 +237,12 @@ public class App {
         int n = grapheSource.getNoeuds().size();
         System.out.println("Fichier charge avec " + n + " villes\n");
 
-        // 2) Graphe partiel
+        // 2) Test sur graphe partiel
         Graphe graphePartiel = chargerGraphe(cheminFichier);
         graphePartiel.partiel(K_VOISINS_PARTIEL);
         testerAlgorithmes("PARTIEL", graphePartiel);
 
-        // 3) Graphe complet
+        // 3) Test sur graphe complet
         Graphe grapheComplet = chargerGraphe(cheminFichier);
         grapheComplet.complet();
         testerAlgorithmes("COMPLET", grapheComplet);
