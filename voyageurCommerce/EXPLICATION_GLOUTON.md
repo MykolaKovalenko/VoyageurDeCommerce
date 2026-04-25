@@ -12,8 +12,8 @@
 
 Avant d'appeler `glouton()`, le graphe doit avoir été chargé (`importer()`) et rempli d'arcs (`complet()` ou `partiel()`).
 
-- Si `complet()` : chaque nœud est relié à tous les autres → le fallback ne sera jamais déclenché.
-- Si `partiel(k)` : chaque nœud n'est relié qu'à ses k plus proches voisins → le fallback peut être déclenché si le glouton se retrouve bloqué.
+- Si `complet()` : chaque nœud est relié à tous les autres → l'algorithme trouve toujours un voisin à chaque étape.
+- Si `partiel(k)` : chaque nœud n'est relié qu'à ses k plus proches voisins → le glouton peut se bloquer si aucun voisin non visité n'est accessible via les arcs existants. Un filtre de sortie est appliqué dans ce cas (voir ci-dessous).
 
 ---
 
@@ -37,6 +37,19 @@ Pas de nœuds = pas de tour possible.
 
 ---
 
+### Étape 1b — Détection graphe complet ou partiel
+
+```java
+int n = noeuds.size();
+boolean estPartiel = arcs.size() < (n * (n - 1)) / 2;
+```
+
+Un graphe complet contient exactement n*(n-1)/2 arcs. Si le nombre d'arcs est inférieur, le graphe est partiel.
+
+Cette information active ou non le filtre de sortie dans la boucle principale.
+
+---
+
 ### Étape 2 — Structures de travail
 
 ```java
@@ -46,7 +59,7 @@ Set<Noeud> nonVisitesSet = new HashSet<>(nonVisites);
 ```
 
 - `chemin` : l'ordre de visite construit au fur et à mesure.
-- `nonVisites` : liste des villes restantes à visiter. Utilisée pour itérer en mode fallback.
+- `nonVisites` : liste des villes restantes à visiter. Elle sert à suivre l'avancement et à retirer les nœuds déjà choisis.
 - `nonVisitesSet` : **même contenu** que `nonVisites`, mais en HashSet.
 
 **Pourquoi deux structures pour la même chose ?**
@@ -86,18 +99,20 @@ On tourne jusqu'à avoir ajouté toutes les villes au chemin.
 
 ---
 
-#### Cas normal — le graphe a des arcs vers des voisins non visités
+#### Sélection du voisin — graphe complet
 
 ```java
 for (Arc arc : courant.getArcs()) {
     Noeud voisin = arc.getN1().getId() == courant.getId() ? arc.getN2() : arc.getN1();
 
-    if (nonVisitesSet.contains(voisin)) {
-        double dist = arc.getValeur();
-        if (dist < minDistance) {
-            minDistance = dist;
-            plusProche = voisin;
-        }
+    if (!nonVisitesSet.contains(voisin)) {
+        continue;
+    }
+
+    double dist = arc.getValeur();
+    if (dist < minDistance) {
+        minDistance = dist;
+        plusProche = voisin;
     }
 }
 ```
@@ -110,27 +125,46 @@ On parcourt **uniquement les arcs existants** dans le graphe source.
 
 ---
 
-#### Cas fallback — graphe partiel bloqué
+#### Filtre de sortie — graphe partiel uniquement
 
 ```java
-if (plusProche == null) {
-    for (Noeud n : nonVisites) {
-        double dist = courant.distanceTo(n, this.isGeo);
-        if (dist < minDistance) {
-            minDistance = dist;
-            plusProche = n;
+if (estPartiel && nonVisitesSet.size() > 1) {
+    boolean aSortie = false;
+    for (Arc arcVoisin : voisin.getArcs()) {
+        Noeud autreVoisin = arcVoisin.getN1().getId() == voisin.getId()
+                ? arcVoisin.getN2() : arcVoisin.getN1();
+        if (nonVisitesSet.contains(autreVoisin)) {
+            aSortie = true;
+            break;
         }
     }
-
-    if (plusProche == null) {
-        return null;
+    if (!aSortie) {
+        continue;
     }
 }
 ```
 
-Si `plusProche == null`, ça veut dire que **tous les voisins directs du nœud courant ont déjà été visités** (situation possible uniquement sur un graphe partiel).
+Sur un graphe partiel, choisir un voisin qui n'a plus de sortie vers les nœuds restants provoque un blocage immédiat à l'étape suivante. Ce filtre évite ce piège.
 
-Dans ce cas, on calcule la distance géométrique directe vers **tous** les nœuds non visités (sans passer par les arcs) et on prend le plus proche. C'est un plan B qui garantit qu'on ne reste pas bloqué.
+**Principe :** avant de retenir un candidat voisin, on vérifie qu'il possède au moins un arc vers un nœud encore non visité.
+
+**Exceptions :**
+- Si c'est le dernier nœud à visiter (`nonVisitesSet.size() == 1`), le filtre est désactivé — la prochaine étape est la fermeture du cycle, pas un nouveau déplacement.
+- Si **tous** les candidats échouent le filtre, `plusProche` reste `null` → l'algorithme retourne `null` (échec propre, sans créer d'arc fictif).
+
+**Complexité du filtre :** O(k) par candidat, k candidats par étape → O(k²) par étape, O(n·k²) au total. Pour k petit, c'est acceptable.
+
+---
+
+#### Si aucun voisin valide trouvé
+
+```java
+if (plusProche == null) {
+    return null;
+}
+```
+
+Aucun arc existant ne mène vers un nœud non visité avec une sortie possible. L'algorithme échoue proprement, **sans créer d'arc fictif**.
 
 ---
 
@@ -192,7 +226,7 @@ importer() → complet() ou partiel()
         départ aléatoire (ex: ville C)
                     ↓
     cherche le voisin non visité le plus proche
-    via les arcs existants (ou fallback direct)
+    via les arcs existants (filtre de sortie sur graphe partiel)
                     ↓
         se déplace → marque comme visité
                     ↓
@@ -213,7 +247,8 @@ importer() → complet() ou partiel()
 |---|---|
 | `nonVisitesSet` (HashSet) | Vérification O(1) si un nœud est déjà visité |
 | `arc.getValeur()` | Distance pré-calculée dans l'arc, pas de recalcul |
-| `distanceTo(n, isGeo)` | Fallback uniquement si le graphe partiel bloque |
+| `estPartiel` (boolean) | Active le filtre de sortie uniquement sur graphe partiel |
+| `voisin.getArcs()` | Parcouru pour vérifier qu'un candidat a encore une sortie |
 | `fermerCycle(chemin)` | Ajoute le nœud de départ en fin de liste |
 | `construireTourDepuisChemin(chemin)` | Construit le Graphe résultat depuis la liste ordonnée |
 
@@ -224,6 +259,8 @@ importer() → complet() ou partiel()
 | Cas | Complexité |
 |---|---|
 | Graphe complet | O(n²) — pour chaque nœud, on parcourt ses n-1 arcs |
-| Graphe partiel (k voisins) | O(n·k) en cas normal, O(n²) si fallback déclenché |
+| Graphe partiel (k voisins) | O(n·k²) — filtre de sortie O(k) par candidat, k candidats par étape |
+
+**Remarque :** le filtre de sortie peut amener l'algorithme à échouer (retourner `null`) si aucun chemin sans impasse n'est trouvable depuis le point de départ choisi. Dans ce cas, relancer avec un autre départ aléatoire peut réussir.
 
 Sur 52 villes avec graphe complet : 52 × 51 / 2 = 1326 arcs → très rapide en pratique.

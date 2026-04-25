@@ -347,7 +347,7 @@ public class Graphe {
 
     public void partiel(int k) {
         if (k <= 1 || k >= noeuds.size()) {
-            System.out.println("Le nombre des voisines doit etre 1 et Nombre_Villes_Total - 1 ");
+              System.out.println("Le nombre de voisins doit etre strictement entre 1 et " + noeuds.size() + " (valeur recue: " + k + ")");
             return;
         }
 
@@ -569,6 +569,10 @@ public class Graphe {
             return null;
         }
 
+        // graphe complet = n*(n-1)/2 arcs
+        int n = noeuds.size();
+        boolean estPartiel = arcs.size() < (n * (n - 1)) / 2;
+
         // chemin = ordre de visite qu on construit
         ArrayList<Noeud> chemin = new ArrayList<>();
         // noeuds qu il reste a visiter
@@ -593,30 +597,39 @@ public class Graphe {
                 Noeud voisin = arc.getN1().getId() == courant.getId() ? arc.getN2() : arc.getN1();
 
                 // si pas encore visite
-                if (nonVisitesSet.contains(voisin)) {
-                    // la distance est deja stockee dans l arc
-                    double dist = arc.getValeur();
-                    if (dist < minDistance) {
-                        minDistance = dist;
-                        plusProche = voisin;
+                if (!nonVisitesSet.contains(voisin)) {
+                    continue;
+                }
+
+                // en graphe partiel: on verifie que ce voisin a encore une sortie possible apres lui
+                // (sauf si c est le dernier noeud a visiter, la sortie sera le retour au depart)
+                if (estPartiel && nonVisitesSet.size() > 1) {
+                    boolean aSortie = false;
+                    for (Arc arcVoisin : voisin.getArcs()) {
+                        Noeud autreVoisin = arcVoisin.getN1().getId() == voisin.getId()
+                                ? arcVoisin.getN2() : arcVoisin.getN1();
+                        // une sortie = un noeud non visite autre que voisin lui-meme
+                        if (nonVisitesSet.contains(autreVoisin)) {
+                            aSortie = true;
+                            break;
+                        }
                     }
+                    if (!aSortie) {
+                        continue;
+                    }
+                }
+
+                // la distance est deja stockee dans l arc
+                double dist = arc.getValeur();
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    plusProche = voisin;
                 }
             }
 
-            // fallback: si graphe partiel bloque, on calcule direct les distances
+            // si bloque (pas de voisin valide): echec propre, pas de creation d arc
             if (plusProche == null) {
-                for (Noeud n : nonVisites) {
-                    // distance geometrique directe
-                    double dist = courant.distanceTo(n, this.isGeo);
-                    if (dist < minDistance) {
-                        minDistance = dist;
-                        plusProche = n;
-                    }
-                }
-
-                if (plusProche == null) {
-                    return null;
-                }
+                return null;
             }
 
             chemin.add(plusProche);
@@ -667,9 +680,11 @@ public class Graphe {
         for (int r = 0; r < repetitions; r++) {
             long debut = System.nanoTime();
             Graphe tourGlouton = this.glouton();
-            totalGlouton += System.nanoTime() - debut;
-            if (tourGlouton != null) {
-                double cout = tourGlouton.cout();
+                long elapsed = System.nanoTime() - debut;
+                if (tourGlouton != null) {
+                    // on ne compte le temps que pour les runs reussis
+                    totalGlouton += elapsed;
+                    double cout = tourGlouton.cout();
                 bestGlouton = Math.min(bestGlouton, cout);
                 worstGlouton = Math.max(worstGlouton, cout);
                 sommeGlouton += cout;
@@ -757,9 +772,12 @@ public class Graphe {
         }
 
         // nanoTime en nanosecondes -> divise par 10^9 pour avoir des secondes
-        double sGlouton = (totalGlouton / (double) repetitions) / 1_000_000_000.0;
-        double sGlouton2OptSeul = mesurer2Opt
-            ? (totalGlouton2Opt / (double) repetitions) / 1_000_000_000.0
+        // pour glouton on divise par le nombre de succes (pas par repetitions)
+        double sGlouton = nbGloutonValides > 0
+            ? (totalGlouton / (double) nbGloutonValides) / 1_000_000_000.0
+            : Double.NaN;
+        double sGlouton2OptSeul = (mesurer2Opt && nbGlouton2OptValides > 0)
+            ? (totalGlouton2Opt / (double) nbGlouton2OptValides) / 1_000_000_000.0
             : Double.NaN;
         double sKruskal = benchmarkKruskal ? (totalKruskal / (double) repetitions) / 1_000_000_000.0 : Double.NaN;
         double sMstApprox = (totalMstApprox / (double) repetitions) / 1_000_000_000.0;
@@ -775,16 +793,26 @@ public class Graphe {
             ? (totalChristofides2Opt / (double) repetitions) / 1_000_000_000.0
             : Double.NaN;
 
-        double sGlouton2Opt = mesurer2Opt ? sGlouton + sGlouton2OptSeul : Double.NaN;
+        double sGlouton2Opt = (mesurer2Opt && !Double.isNaN(sGlouton) && !Double.isNaN(sGlouton2OptSeul))
+            ? sGlouton + sGlouton2OptSeul
+            : Double.NaN;
         double sMstApprox2Opt = mesurer2Opt ? sMstApprox + sMstApprox2OptSeul : Double.NaN;
         double sChristofides2Opt = (benchmarkChristofides && mesurer2Opt)
             ? sChristofides + sChristofides2OptSeul
             : Double.NaN;
 
         System.out.println("--- Evaluation des temps (" + repetitions + " iterations, n=" + n + ") ---");
-        System.out.printf("glouton                  : %.6f s%n", sGlouton);
+        if (!Double.isNaN(sGlouton)) {
+            System.out.printf("glouton                  : %.6f s%n", sGlouton);
+        } else {
+            System.out.println("glouton                  : n/a (aucun succes)");
+        }
         if (mesurer2Opt) {
-            System.out.printf("glouton + 2-opt          : %.6f s%n", sGlouton2Opt);
+            if (!Double.isNaN(sGlouton2Opt)) {
+                System.out.printf("glouton + 2-opt          : %.6f s%n", sGlouton2Opt);
+            } else {
+                System.out.println("glouton + 2-opt          : n/a (aucun succes)");
+            }
         }
         if (benchmarkKruskal) {
             System.out.printf("kruskal (MST)            : %.6f s%n", sKruskal);
@@ -808,7 +836,10 @@ public class Graphe {
         }
 
         double moyenneGlouton = nbGloutonValides > 0 ? sommeGlouton / nbGloutonValides : Double.NaN;
+        double tauxGlouton = (nbGloutonValides * 100.0) / repetitions;
         System.out.println("--- Resultats glouton (" + repetitions + " iterations) ---");
+        System.out.printf("taux de reussite         : %d/%d (%.0f%%)%n",
+            nbGloutonValides, repetitions, tauxGlouton);
         System.out.println("meilleur cout glouton    : "
             + (Double.isFinite(bestGlouton) ? bestGlouton : "n/a"));
         System.out.println("pire cout glouton        : "
@@ -827,7 +858,10 @@ public class Graphe {
                 ? sommeChristofides2Opt / nbChristofides2OptValides
                 : Double.NaN;
 
+            double tauxGlouton2Opt = (nbGlouton2OptValides * 100.0) / repetitions;
             System.out.println("--- Resultats glouton + 2-opt (" + repetitions + " iterations) ---");
+            System.out.printf("taux de reussite         : %d/%d (%.0f%%)%n",
+                nbGlouton2OptValides, repetitions, tauxGlouton2Opt);
             System.out.println("meilleur cout glouton    : "
                 + (Double.isFinite(bestGlouton2Opt) ? bestGlouton2Opt : "n/a"));
             System.out.println("pire cout glouton        : "

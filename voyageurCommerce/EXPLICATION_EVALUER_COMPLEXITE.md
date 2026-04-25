@@ -51,11 +51,13 @@ Pourquoi des compteurs valides :
 
 Boucle de 100 iterations :
 1. mesurer le temps de glouton,
-2. accumuler le temps dans totalGlouton,
+2. si le tour est valide, accumuler le temps dans totalGlouton,
 3. si le tour est valide :
    - mettre a jour meilleur/pire cout,
    - ajouter le cout a la somme,
    - incrementer nbGloutonValides.
+
+Important : les runs qui echouent (tour null) ne sont pas comptes dans totalGlouton, pour garder un temps moyen coherent avec le nombre de succes.
 
 Puis, si mesurer2Opt est vrai :
 - appliquer deuxOpt sur le tour glouton,
@@ -135,8 +137,12 @@ But :
 
 ## Etape 7 - Conversion nanosecondes vers secondes
 
-Tous les totaux sont convertis en temps moyen :
+Pour la plupart des methodes, les totaux sont convertis en temps moyen par :
 - total / repetitions / 1_000_000_000.0
+
+**Exception pour glouton :** le temps est divise par `nbGloutonValides` (le nombre de succes) et non par `repetitions`. En effet, sur un graphe partiel, glouton peut echouer (retourner null) pour certains departs aleatoires. Diviser par 100 inclurait le temps des echecs et fausserait la mesure du cout reel d'une execution reussie. Protection contre la division par zero : si `nbGloutonValides == 0`, le temps affiche est n/a.
+
+Meme logique pour glouton + 2-opt : divise par `nbGlouton2OptValides`.
 
 Variables produites :
 - sGlouton, sKruskal, sMstApprox, sMM, sMstPlusMM, sChristofides,
@@ -169,10 +175,15 @@ Si deuxOpt est desactive (n trop grand), message explicite :
 ## Etape 9 - Affichage des qualites de solution
 
 La methode affiche ensuite :
-- Resultats glouton : meilleur, pire, moyenne.
+- Resultats glouton : taux de reussite, meilleur, pire, moyenne.
+
+Le taux de reussite indique combien d'iterations glouton ont produit un tour valide sur les 100 :
+- format : X/100 (Y%)
+- sur graphe complet : toujours 100/100 (100%)
+- sur graphe partiel : peut etre inferieur, selon la structure du graphe et les departs aleatoires
 
 Puis, si deuxOpt est actif :
-- Resultats glouton + 2-opt : meilleur, pire, moyenne.
+- Resultats glouton + 2-opt : taux de reussite, meilleur, pire, moyenne.
 - Resultats methodes + 2-opt : moyenne mstApprox et (si active) moyenne christofides.
 
 Gestion des cas invalides :
@@ -200,13 +211,15 @@ API de mesure :
 ## Comment lire les resultats rapidement
 
 Lecture recommandee :
-1. Regarder les temps moyens : quelle methode est la plus rapide.
-2. Regarder les couts moyens : quelle methode donne les meilleurs tours.
-3. Regarder l impact de deuxOpt : gain de qualite vs surcout en temps.
+1. Regarder le taux de reussite glouton : sur graphe partiel, un taux bas indique que le filtre de sortie rejette beaucoup de chemins depuis certains departs.
+2. Regarder les temps moyens : quelle methode est la plus rapide (pour glouton, temps par succes uniquement).
+3. Regarder les couts moyens : quelle methode donne les meilleurs tours.
+4. Regarder l impact de deuxOpt : gain de qualite vs surcout en temps.
 
 Regle pratique :
 - si deuxOpt reduit fortement le cout pour un surcout raisonnable, il est rentable.
 - si n est grand, son cout peut devenir trop eleve (d ou la coupure automatique).
+- un taux de reussite glouton faible sur graphe partiel peut indiquer que k est trop petit pour la taille du graphe.
 
 ---
 
