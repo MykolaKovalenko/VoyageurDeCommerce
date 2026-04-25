@@ -670,12 +670,6 @@ public class Graphe {
         double sommeGlouton2Opt = 0.0;
         int nbGlouton2OptValides = 0;
 
-        double sommeMstApprox2Opt = 0.0;
-        int nbMstApprox2OptValides = 0;
-
-        double sommeChristofides2Opt = 0.0;
-        int nbChristofides2OptValides = 0;
-
         // 100 runs glouton
         for (int r = 0; r < repetitions; r++) {
             long debut = System.nanoTime();
@@ -723,12 +717,8 @@ public class Graphe {
 
             if (mesurer2Opt && tourMst != null) {
                 long debut2Opt = System.nanoTime();
-                Graphe tourMst2Opt = this.deuxOpt(tourMst);
+                this.deuxOpt(tourMst);
                 totalMstApprox2Opt += System.nanoTime() - debut2Opt;
-                if (tourMst2Opt != null) {
-                    sommeMstApprox2Opt += tourMst2Opt.cout();
-                    nbMstApprox2OptValides++;
-                }
             }
         }
 
@@ -761,12 +751,8 @@ public class Graphe {
 
                 if (mesurer2Opt && tourChristofides != null) {
                     long debut2Opt = System.nanoTime();
-                    Graphe tourChristofides2Opt = this.deuxOpt(tourChristofides);
+                    this.deuxOpt(tourChristofides);
                     totalChristofides2Opt += System.nanoTime() - debut2Opt;
-                    if (tourChristofides2Opt != null) {
-                        sommeChristofides2Opt += tourChristofides2Opt.cout();
-                        nbChristofides2OptValides++;
-                    }
                 }
             }
         }
@@ -801,82 +787,145 @@ public class Graphe {
             ? sChristofides + sChristofides2OptSeul
             : Double.NaN;
 
-        System.out.println("--- Evaluation des temps (" + repetitions + " iterations, n=" + n + ") ---");
+        System.out.println("\n=== TABLEAU TEMPS (" + repetitions + " iterations, n=" + n + ") ===");
+        System.out.println("+--------------------------------+----------------------+ ");
+        System.out.printf("| %-30s | %-20s |%n", "Algorithme", "Temps moyen (s)");
+        System.out.println("+--------------------------------+----------------------+ ");
         if (!Double.isNaN(sGlouton)) {
-            System.out.printf("glouton                  : %.6f s%n", sGlouton);
+            System.out.printf("| %-30s | %20.6f |%n", "glouton", sGlouton);
         } else {
-            System.out.println("glouton                  : n/a (aucun succes)");
+            System.out.printf("| %-30s | %-20s |%n", "glouton", "n/a");
         }
         if (mesurer2Opt) {
             if (!Double.isNaN(sGlouton2Opt)) {
-                System.out.printf("glouton + 2-opt          : %.6f s%n", sGlouton2Opt);
+                System.out.printf("| %-30s | %20.6f |%n", "glouton + 2-opt", sGlouton2Opt);
             } else {
-                System.out.println("glouton + 2-opt          : n/a (aucun succes)");
+                System.out.printf("| %-30s | %-20s |%n", "glouton + 2-opt", "n/a");
             }
         }
         if (benchmarkKruskal) {
-            System.out.printf("kruskal (MST)            : %.6f s%n", sKruskal);
+            System.out.printf("| %-30s | %20.6f |%n", "kruskal (MST)", sKruskal);
         }
-        System.out.printf("tsp via MST (mstApprox)  : %.6f s%n", sMstApprox);
+        System.out.printf("| %-30s | %20.6f |%n", "tsp via MST (mstApprox)", sMstApprox);
         if (mesurer2Opt) {
-            System.out.printf("mstApprox + 2-opt        : %.6f s%n", sMstApprox2Opt);
+            System.out.printf("| %-30s | %20.6f |%n", "mstApprox + 2-opt", sMstApprox2Opt);
         }
         if (benchmarkMM) {
-            System.out.printf("minimumMatching (MM seul): %.6f s%n", sMM);
-            System.out.printf("pipeline (MST + MM)      : %.6f s%n", sMstPlusMM);
+            System.out.printf("| %-30s | %20.6f |%n", "minimumMatching (MM seul)", sMM);
+            System.out.printf("| %-30s | %20.6f |%n", "pipeline (MST + MM)", sMstPlusMM);
         }
         if (benchmarkChristofides) {
-            System.out.printf("christofides             : %.6f s%n", sChristofides);
+            System.out.printf("| %-30s | %20.6f |%n", "christofides", sChristofides);
             if (mesurer2Opt) {
-                System.out.printf("christofides + 2-opt     : %.6f s%n", sChristofides2Opt);
+                System.out.printf("| %-30s | %20.6f |%n", "christofides + 2-opt", sChristofides2Opt);
             }
         }
+        System.out.println("+--------------------------------+----------------------+ ");
         if (!mesurer2Opt) {
-            System.out.println("2-opt non mesure (n > " + MAX_NOEUDS_2OPT_BENCH + ")");
+            System.out.println("Note: 2-opt non mesure (n > " + MAX_NOEUDS_2OPT_BENCH + ")");
         }
 
         double moyenneGlouton = nbGloutonValides > 0 ? sommeGlouton / nbGloutonValides : Double.NaN;
         double tauxGlouton = (nbGloutonValides * 100.0) / repetitions;
-        System.out.println("--- Resultats glouton (" + repetitions + " iterations) ---");
-        System.out.printf("taux de reussite         : %d/%d (%.0f%%)%n",
-            nbGloutonValides, repetitions, tauxGlouton);
-        System.out.println("meilleur cout glouton    : "
-            + (Double.isFinite(bestGlouton) ? bestGlouton : "n/a"));
-        System.out.println("pire cout glouton        : "
-            + (Double.isFinite(worstGlouton) ? worstGlouton : "n/a"));
-        System.out.println("cout moyen glouton       : "
-            + (Double.isFinite(moyenneGlouton) ? moyenneGlouton : "n/a"));
+
+        Graphe tourMstUnique = this.mstApprox();
+        double coutMstApproxUnique = tourMstUnique != null ? tourMstUnique.cout() : Double.NaN;
+        double coutMstApprox2OptUnique = Double.NaN;
+        if (mesurer2Opt && tourMstUnique != null) {
+            Graphe tourMst2OptUnique = this.deuxOpt(tourMstUnique);
+            if (tourMst2OptUnique != null) {
+                coutMstApprox2OptUnique = tourMst2OptUnique.cout();
+            }
+        }
+
+        double coutChristofidesUnique = Double.NaN;
+        double coutChristofides2OptUnique = Double.NaN;
+        if (benchmarkChristofides) {
+            Graphe tourChristofidesUnique = this.christofides();
+            if (tourChristofidesUnique != null) {
+                coutChristofidesUnique = tourChristofidesUnique.cout();
+                if (mesurer2Opt) {
+                    Graphe tourChristofides2OptUnique = this.deuxOpt(tourChristofidesUnique);
+                    if (tourChristofides2OptUnique != null) {
+                        coutChristofides2OptUnique = tourChristofides2OptUnique.cout();
+                    }
+                }
+            }
+        }
+
+        System.out.println("\n=== TABLEAU RESULTATS ===");
+        System.out.println("+--------------------------------+----------------------+ ");
+        System.out.printf("| %-30s | %-20s |%n", "Mesure", "Valeur");
+        System.out.println("+--------------------------------+----------------------+ ");
+        System.out.printf("| %-30s | %20s |%n", "glouton taux reussite", nbGloutonValides + "/" + repetitions + " (" + String.format("%.0f", tauxGlouton) + "%)");
+        if (Double.isFinite(bestGlouton)) {
+            System.out.printf("| %-30s | %20.3f |%n", "glouton meilleur cout", bestGlouton);
+        } else {
+            System.out.printf("| %-30s | %-20s |%n", "glouton meilleur cout", "n/a");
+        }
+        if (Double.isFinite(worstGlouton)) {
+            System.out.printf("| %-30s | %20.3f |%n", "glouton pire cout", worstGlouton);
+        } else {
+            System.out.printf("| %-30s | %-20s |%n", "glouton pire cout", "n/a");
+        }
+        if (Double.isFinite(moyenneGlouton)) {
+            System.out.printf("| %-30s | %20.3f |%n", "glouton cout moyen", moyenneGlouton);
+        } else {
+            System.out.printf("| %-30s | %-20s |%n", "glouton cout moyen", "n/a");
+        }
+
+        if (Double.isFinite(coutMstApproxUnique)) {
+            System.out.printf("| %-30s | %20.3f |%n", "mstApprox cout", coutMstApproxUnique);
+        } else {
+            System.out.printf("| %-30s | %-20s |%n", "mstApprox cout", "n/a");
+        }
+
+        if (benchmarkChristofides) {
+            if (Double.isFinite(coutChristofidesUnique)) {
+                System.out.printf("| %-30s | %20.3f |%n", "christofides cout", coutChristofidesUnique);
+            } else {
+                System.out.printf("| %-30s | %-20s |%n", "christofides cout", "n/a");
+            }
+        }
 
         if (mesurer2Opt) {
             double moyenneGlouton2Opt = nbGlouton2OptValides > 0
                 ? sommeGlouton2Opt / nbGlouton2OptValides
                 : Double.NaN;
-            double moyenneMstApprox2Opt = nbMstApprox2OptValides > 0
-                ? sommeMstApprox2Opt / nbMstApprox2OptValides
-                : Double.NaN;
-            double moyenneChristofides2Opt = nbChristofides2OptValides > 0
-                ? sommeChristofides2Opt / nbChristofides2OptValides
-                : Double.NaN;
 
             double tauxGlouton2Opt = (nbGlouton2OptValides * 100.0) / repetitions;
-            System.out.println("--- Resultats glouton + 2-opt (" + repetitions + " iterations) ---");
-            System.out.printf("taux de reussite         : %d/%d (%.0f%%)%n",
-                nbGlouton2OptValides, repetitions, tauxGlouton2Opt);
-            System.out.println("meilleur cout glouton    : "
-                + (Double.isFinite(bestGlouton2Opt) ? bestGlouton2Opt : "n/a"));
-            System.out.println("pire cout glouton        : "
-                + (Double.isFinite(worstGlouton2Opt) ? worstGlouton2Opt : "n/a"));
-            System.out.println("cout moyen glouton       : "
-                + (Double.isFinite(moyenneGlouton2Opt) ? moyenneGlouton2Opt : "n/a"));
+            System.out.printf("| %-30s | %20s |%n", "glouton+2opt taux reussite", nbGlouton2OptValides + "/" + repetitions + " (" + String.format("%.0f", tauxGlouton2Opt) + "%)");
+            if (Double.isFinite(bestGlouton2Opt)) {
+                System.out.printf("| %-30s | %20.3f |%n", "glouton+2opt meilleur", bestGlouton2Opt);
+            } else {
+                System.out.printf("| %-30s | %-20s |%n", "glouton+2opt meilleur", "n/a");
+            }
+            if (Double.isFinite(worstGlouton2Opt)) {
+                System.out.printf("| %-30s | %20.3f |%n", "glouton+2opt pire", worstGlouton2Opt);
+            } else {
+                System.out.printf("| %-30s | %-20s |%n", "glouton+2opt pire", "n/a");
+            }
+            if (Double.isFinite(moyenneGlouton2Opt)) {
+                System.out.printf("| %-30s | %20.3f |%n", "glouton+2opt moyen", moyenneGlouton2Opt);
+            } else {
+                System.out.printf("| %-30s | %-20s |%n", "glouton+2opt moyen", "n/a");
+            }
 
-            System.out.println("--- Resultats methodes + 2-opt (" + repetitions + " iterations) ---");
-            System.out.println("cout moyen mstApprox     : "
-                + (Double.isFinite(moyenneMstApprox2Opt) ? moyenneMstApprox2Opt : "n/a"));
+            if (Double.isFinite(coutMstApprox2OptUnique)) {
+                System.out.printf("| %-30s | %20.3f |%n", "mstApprox+2opt", coutMstApprox2OptUnique);
+            } else {
+                System.out.printf("| %-30s | %-20s |%n", "mstApprox+2opt", "n/a");
+            }
+
             if (benchmarkChristofides) {
-                System.out.println("cout moyen christofides  : "
-                    + (Double.isFinite(moyenneChristofides2Opt) ? moyenneChristofides2Opt : "n/a"));
+                if (Double.isFinite(coutChristofides2OptUnique)) {
+                    System.out.printf("| %-30s | %20.3f |%n", "christofides+2opt", coutChristofides2OptUnique);
+                } else {
+                    System.out.printf("| %-30s | %-20s |%n", "christofides+2opt", "n/a");
+                }
             }
         }
+        System.out.println("+--------------------------------+----------------------+ ");
     }
 
     public Graphe kruskal() {
@@ -993,6 +1042,57 @@ public class Graphe {
         return construireTourDepuisChemin(chemin);
     }
 
+    private ArrayList<Noeud> normaliserCycleEulerien(ArrayList<Noeud> circuit) {
+        ArrayList<Noeud> normalise = new ArrayList<>(circuit);
+        if (normalise.size() > 1
+                && normalise.get(0).getId() == normalise.get(normalise.size() - 1).getId()) {
+            normalise.remove(normalise.size() - 1);
+        }
+        return normalise;
+    }
+
+    private Graphe meilleurShortcutEulerien(ArrayList<Noeud> circuit) {
+        ArrayList<Noeud> base = normaliserCycleEulerien(circuit);
+        if (base.isEmpty()) {
+            return null;
+        }
+
+        Graphe meilleurTour = null;
+        double meilleurCout = Double.POSITIVE_INFINITY;
+
+        ArrayList<Noeud> baseInverse = new ArrayList<>(base);
+        java.util.Collections.reverse(baseInverse);
+
+        for (int sens = 0; sens < 2; sens++) {
+            ArrayList<Noeud> orientation = sens == 0 ? base : baseInverse;
+            for (int decalage = 0; decalage < orientation.size(); decalage++) {
+                ArrayList<Noeud> chemin = new ArrayList<>();
+                Set<Integer> dejaVus = new HashSet<>();
+                for (int i = 0; i < orientation.size(); i++) {
+                    Noeud n = orientation.get((decalage + i) % orientation.size());
+                    if (dejaVus.add(n.getId())) {
+                        chemin.add(n);
+                    }
+                }
+
+                if (chemin.size() != this.noeuds.size()) {
+                    continue;
+                }
+
+                fermerCycle(chemin);
+                Graphe tour = construireTourDepuisChemin(chemin);
+                double cout = tour.cout();
+
+                if (cout < meilleurCout) {
+                    meilleurCout = cout;
+                    meilleurTour = tour;
+                }
+            }
+        }
+
+        return meilleurTour;
+    }
+
     // Circuit eulerien avec Hierholzer sur un multigraphe
     // Precondition: tous les noeuds doivent avoir un degre pair
     // Retourne la liste ordonnee des noeuds du circuit
@@ -1018,8 +1118,13 @@ public class Graphe {
             ptr.put(id, 0);
         }
 
-        // depart: premier noeud dispo
-        int depart = noeudsParId.keySet().iterator().next();
+        // depart deterministe: plus petit ID
+        int depart = Integer.MAX_VALUE;
+        for (int id : noeudsParId.keySet()) {
+            if (id < depart) {
+                depart = id;
+            }
+        }
 
         // pile de Hierholzer (version iterative)
         Deque<Integer> pile = new ArrayDeque<>();
@@ -1101,20 +1206,8 @@ public class Graphe {
             return null;
         }
 
-        // 5) shortcut: on garde la 1ere apparition de chaque noeud
-        ArrayList<Noeud> chemin = new ArrayList<>();
-        Set<Integer> dejaVus = new HashSet<>();
-        for (Noeud n : circuit) {
-            if (dejaVus.add(n.getId())) {
-                chemin.add(n);
-            }
-        }
-
-        // ferme le cycle
-        fermerCycle(chemin);
-
-        // 6) construit le graphe resultat
-        return construireTourDepuisChemin(chemin);
+        // 5) teste plusieurs shortcuts du meme circuit eulerien et garde le meilleur
+        return meilleurShortcutEulerien(circuit);
     }
 
 }

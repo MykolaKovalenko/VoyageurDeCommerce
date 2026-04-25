@@ -165,7 +165,7 @@ Principe:
 2. matching minimum sur noeuds impairs,
 3. multigraphe eulerien (MST + matching),
 4. circuit eulerien (Hierholzer),
-5. shortcut vers tour hamiltonien.
+5. evaluation de plusieurs shortcuts (rotations + sens inverse) et selection du meilleur tour hamiltonien.
 
 Pourquoi:
 
@@ -175,6 +175,11 @@ Pourquoi:
 Limite:
 
 - depend de la faisabilite du matching exact (borne 22 impairs).
+
+Note implementation:
+
+- dans ce projet, Christofides est rendu deterministe (depart eulerien fixe + ordre fixe + meilleur shortcut choisi de facon deterministe),
+- sur une meme instance, il retourne donc le meme cout a chaque execution.
 
 ## 8) Amelioration locale 2-opt
 
@@ -205,11 +210,19 @@ Benchmark sur 100 iterations:
 - temps moyen christofides,
 - temps moyen christofides + 2-opt (si active).
 
-Couts affiches:
+Couts affiches (version actuelle):
 
-- glouton: meilleur, pire, moyen,
-- glouton + 2-opt: meilleur, pire, moyen,
-- methodes + 2-opt: cout moyen (`mstApprox`, `christofides`).
+- glouton: taux de reussite + meilleur/pire/moyen (car aleatoire),
+- glouton + 2-opt: taux de reussite + meilleur/pire/moyen,
+- mstApprox: un cout unique,
+- mstApprox + 2-opt: un cout unique,
+- christofides: un cout unique,
+- christofides + 2-opt: un cout unique.
+
+Affichage console:
+
+- un tableau ASCII pour les temps,
+- un tableau ASCII pour les resultats.
 
 Note importante:
 
@@ -234,8 +247,9 @@ Note importante:
 
 - glouton utilise un depart aleatoire,
 - 2-opt depend du tour de depart,
+- mstApprox et christofides sont deterministes dans cette implementation,
 - un algorithme deterministe peut etre parfois moins bon qu un meilleur run glouton,
-- un run ne suffit pas: il faut lire les moyennes et les meilleurs/pires.
+- pour glouton, un run ne suffit pas: il faut lire les moyennes et les meilleurs/pires.
 
 ## 13) Utilisation rapide
 

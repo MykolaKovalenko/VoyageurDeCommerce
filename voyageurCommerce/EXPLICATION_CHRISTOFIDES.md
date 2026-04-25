@@ -10,7 +10,7 @@ Pipeline general :
 3. Calculer un minimum perfect matching sur ces noeuds impairs.
 4. Fusionner MST + matching en multigraphe eulerien (tous degres pairs).
 5. Extraire un circuit eulerien (Hierholzer).
-6. Faire du shortcut (supprimer repetitions de noeuds) pour obtenir un tour hamiltonien.
+6. Tester plusieurs shortcuts (rotations + sens inverse) et garder le meilleur tour hamiltonien.
 
 Garantie theorique (metrique avec inegalite triangulaire) :
 
@@ -133,12 +133,21 @@ for (Noeud n : circuit) {
 }
 ```
 
-On garde uniquement la premiere apparition de chaque noeud (par ID).
+Dans la version actuelle du projet, on ne garde pas un seul shortcut.
+Le code:
+- normalise le cycle eulerien,
+- teste toutes les rotations dans le sens direct,
+- teste toutes les rotations dans le sens inverse,
+- conserve le tour de cout minimal parmi ces candidats.
 
 Pourquoi c'est valide :
 - Le circuit eulerien peut revisiter des noeuds.
 - En TSP on veut visiter chaque noeud une seule fois.
 - Avec l'inegalite triangulaire, remplacer un detour par un saut direct n'augmente pas le cout.
+
+Pourquoi c est utile :
+- deux lectures differentes d un meme cycle eulerien peuvent donner des tours hamiltoniens differents,
+- prendre le meilleur des rotations ameliore souvent le resultat sans changer le coeur theorique de Christofides.
 
 ---
 
@@ -233,3 +242,8 @@ Votre `minimumMatching` est exact mais borne (max 22 noeuds impairs), donc :
 - Peut lever une exception sur grosses instances si trop de noeuds impairs.
 
 C'est un choix coherent pour garder des resultats de qualite sans exploser en temps/memoire.
+
+Autre point implementation:
+- le depart de Hierholzer est fixe (plus petit ID),
+- les regles de parcours et de selection du meilleur shortcut sont deterministes,
+- donc, sur une meme instance, `christofides()` retourne le meme cout a chaque execution dans ce projet.

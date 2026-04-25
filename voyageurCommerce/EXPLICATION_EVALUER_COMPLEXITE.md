@@ -184,10 +184,17 @@ Le taux de reussite indique combien d'iterations glouton ont produit un tour val
 
 Puis, si deuxOpt est actif :
 - Resultats glouton + 2-opt : taux de reussite, meilleur, pire, moyenne.
-- Resultats methodes + 2-opt : moyenne mstApprox et (si active) moyenne christofides.
+- mstApprox : un cout unique.
+- mstApprox + 2-opt : un cout unique.
+- christofides (si active) : un cout unique.
+- christofides + 2-opt (si active) : un cout unique.
 
 Gestion des cas invalides :
 - si aucune valeur valide, la methode affiche n/a grace a Double.isFinite.
+
+Forme de sortie :
+- un tableau ASCII pour les temps,
+- un tableau ASCII pour les resultats.
 
 ---
 
@@ -213,7 +220,7 @@ API de mesure :
 Lecture recommandee :
 1. Regarder le taux de reussite glouton : sur graphe partiel, un taux bas indique que le filtre de sortie rejette beaucoup de chemins depuis certains departs.
 2. Regarder les temps moyens : quelle methode est la plus rapide (pour glouton, temps par succes uniquement).
-3. Regarder les couts moyens : quelle methode donne les meilleurs tours.
+3. Comparer les couts uniques de mstApprox/christofides entre eux et avec glouton moyen.
 4. Regarder l impact de deuxOpt : gain de qualite vs surcout en temps.
 
 Regle pratique :
@@ -234,4 +241,4 @@ Regle pratique :
 
 ## Resume en une phrase
 
-evaluerComplexite est un mini banc d essai integre qui compare vitesse et qualite de plusieurs pipelines TSP, avec ou sans deuxOpt, de maniere repetee et lisible en sortie console.
+evaluerComplexite est un mini banc d essai integre qui compare vitesse et qualite de plusieurs pipelines TSP, avec ou sans deuxOpt, en affichant des tableaux lisibles et des stats detaillees seulement pour la partie aleatoire (glouton).

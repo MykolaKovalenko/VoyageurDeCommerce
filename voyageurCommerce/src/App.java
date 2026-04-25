@@ -9,7 +9,7 @@ public class App {
     // Config du test
     // =========================
     // CSV a tester (dans data/)
-    private static final String NOM_FICHIER_CSV = "52-points (avec-points).csv";
+    private static final String NOM_FICHIER_CSV = "14-points.csv";
 
     // Generation optionelle d'un CSV de test.
     // true  -> genere un nouveau fichier puis l'utilise
@@ -20,7 +20,7 @@ public class App {
     // Type du fichier genere: "GEO" ou "2D"
     private static final String TYPE_CSV_GENERE = "GEO";
 
-    private static final int K_VOISINS_PARTIEL = 5;
+    private static final int K_VOISINS_PARTIEL = 13;
 
     private static final boolean AFFICHER_KRUSKAL = false;
     private static final boolean AFFICHER_MM = false;
