@@ -9,18 +9,18 @@ public class App {
     // Config du test
     // =========================
     // CSV a tester (dans data/)
-    private static final String NOM_FICHIER_CSV = "52-points (avec-virgules).csv";
+    private static final String NOM_FICHIER_CSV = "800.csv";
 
     // Generation optionelle d'un CSV de test.
     // true  -> genere un nouveau fichier puis l'utilise
     // false -> garde NOM_FICHIER_CSV
-    private static final boolean GENERER_CSV = false;
-    private static final String NOM_FICHIER_GENERE = "100.csv";
-    private static final int NOMBRE_NOEUDS_GENERES = 100;
+    private static final boolean GENERER_CSV = true;
+    private static final String NOM_FICHIER_GENERE = "800.csv";
+    private static final int NOMBRE_NOEUDS_GENERES = 800;
     // Type du fichier genere: "GEO" ou "2D"
     private static final String TYPE_CSV_GENERE = "GEO";
 
-    private static final int K_VOISINS_PARTIEL = 6;
+    private static final int K_VOISINS_PARTIEL = 20;
 
     private static final boolean AFFICHER_KRUSKAL = false;
     private static final boolean AFFICHER_MM = false;
@@ -28,8 +28,8 @@ public class App {
     private static final boolean BENCHMARK_KRUSKAL = false;
     private static final boolean BENCHMARK_MM = false;
     
-    private static final boolean TESTER_CHRISTOFIDES = true;
-    private static final boolean BENCHMARK_CHRISTOFIDES = true;
+    private static final boolean TESTER_CHRISTOFIDES = false;
+    private static final boolean BENCHMARK_CHRISTOFIDES = false;
 
     private static void afficherResultat(String nom, Graphe resultat) {
         if (resultat == null) {

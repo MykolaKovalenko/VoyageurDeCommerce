@@ -102,14 +102,19 @@ C'est ce qui rend Hierholzer efficace : on ne re-parcourt jamais un arc déjà u
 ### Étape 4 — Initialiser la pile et choisir le départ
 
 ```java
-int depart = noeudsParId.keySet().iterator().next();
+int depart = Integer.MAX_VALUE;
+for (int id : noeudsParId.keySet()) {
+    if (id < depart) {
+        depart = id;
+    }
+}
 
 Deque<Integer> pile = new ArrayDeque<>();
 ArrayList<Noeud> circuit = new ArrayList<>();
 pile.push(depart);
 ```
 
-Le départ peut être **n'importe quel nœud** — sur un graphe eulérien connexe, le circuit complet existe depuis n'importe quel point de départ.
+Théoriquement, le départ peut être n'importe quel nœud sur un graphe eulérien connexe. Dans ce projet, le choix est rendu **déterministe**: on prend le plus petit ID.
 
 `pile` est la pile de travail de Hierholzer (version itérative pour éviter les débordements de pile sur de grands graphes).
 
@@ -201,7 +206,7 @@ Circuit eulérien : **A → C → B → A** (lu en inversant l'ordre d'insertion
                     ↓
      2. Initialiser arcUtilise[] et pointeurs ptr[]
                     ↓
-     3. Départ = premier nœud disponible
+    3. Départ = plus petit ID (choix déterministe)
                     ↓
      4. Boucle :
         ├── Arc disponible depuis le sommet courant ?

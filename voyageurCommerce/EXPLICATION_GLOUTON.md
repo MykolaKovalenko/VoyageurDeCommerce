@@ -4,7 +4,7 @@
 
 `glouton` implémente l'algorithme du **plus proche voisin** pour résoudre le problème du voyageur de commerce (TSP).
 
-**Idée** : à chaque étape, on se déplace vers la ville non visitée la plus proche. C'est rapide mais pas optimal — le tour produit peut être jusqu'à 25% plus long que l'optimal.
+**Idée** : à chaque étape, on se déplace vers la ville non visitée la plus proche. C'est rapide mais pas optimal — il n'y a pas de borne d'approximation simple garantie en général pour cette heuristique.
 
 ---
 

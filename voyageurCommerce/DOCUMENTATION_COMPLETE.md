@@ -13,7 +13,16 @@ Le projet est oriente comparaison experimentale:
 - tests sur graphe partiel (k plus proches voisins),
 - tests sur graphe complet,
 - benchmark sur 100 iterations,
-- analyse avec et sans amelioration locale 2-opt.
+- analyse avec et sans amelioration locale 2-opt (`deuxOpt()`).
+
+## 1.1) Conventions de nommage
+
+Pour eviter les ambiguities entre theorie et implementation, cette documentation utilise les conventions suivantes:
+
+- `deuxOpt()` = nom de la methode Java, "2-opt" = nom de l heuristique.
+- `minimumMatching(mst)` = nom de la methode Java, "MM" = abrevation courte dans les tableaux.
+- `mstApprox()` et `christofides()` = noms de methodes Java pour les pipelines TSP correspondants.
+- "MST" = arbre couvrant minimal (resultat de `kruskal()`).
 
 ## 2) Fichiers du code
 
@@ -232,7 +241,7 @@ Note importante:
 
 - gestion des CSV de cours en GEO TSPLIB,
 - pipeline complet TSP (heuristique + approximation),
-- benchmark compare base vs +2-opt,
+- benchmark compare base vs + 2-opt,
 - execution stable sur petites et moyennes tailles,
 - configuration simple via constantes de `App.java`.
 

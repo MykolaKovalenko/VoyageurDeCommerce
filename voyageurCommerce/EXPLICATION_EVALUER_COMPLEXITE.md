@@ -7,7 +7,7 @@ La methode evaluerComplexite sert a mesurer les performances et la qualite de pl
 Elle calcule :
 - des temps moyens d execution (en secondes),
 - des statistiques de cout (meilleur, pire, moyenne),
-- l effet de deuxOpt sur plusieurs methodes.
+- l effet de `deuxOpt()` sur plusieurs methodes.
 
 Elle fait ces mesures sur 100 repetitions pour lisser les variations.
 
@@ -21,9 +21,9 @@ public void evaluerComplexite(boolean benchmarkKruskal, boolean benchmarkMM, boo
 Role des 3 booleens :
 - benchmarkKruskal : active ou non la mesure du temps de kruskal seul.
 - benchmarkMM : active ou non la mesure de minimumMatching seul et du pipeline MST + MM.
-- benchmarkChristofides : active ou non la mesure de christofides.
+- benchmarkChristofides : active ou non la mesure de `christofides()`.
 
-Important : glouton et mstApprox sont toujours mesures. Les autres blocs sont conditionnels.
+Important : `glouton()` et `mstApprox()` sont toujours mesures. Les autres blocs sont conditionnels.
 
 ---
 
@@ -35,7 +35,7 @@ La methode lit d abord :
 - mesurer2Opt = vrai si n <= MAX_NOEUDS_2OPT_BENCH.
 
 Interpretation :
-- quand n est trop grand, deuxOpt est ignore volontairement pour eviter des temps trop longs.
+- quand n est trop grand, `deuxOpt()` est ignore volontairement pour eviter des temps trop longs.
 
 Ensuite elle initialise beaucoup d accumulateurs :
 - totaux de temps en nanosecondes (long),
@@ -60,12 +60,12 @@ Boucle de 100 iterations :
 Important : les runs qui echouent (tour null) ne sont pas comptes dans totalGlouton, pour garder un temps moyen coherent avec le nombre de succes.
 
 Puis, si mesurer2Opt est vrai :
-- appliquer deuxOpt sur le tour glouton,
-- mesurer le temps de deuxOpt seul,
+- appliquer `deuxOpt()` sur le tour glouton,
+- mesurer le temps de `deuxOpt()` seul,
 - accumuler ses statistiques de cout si le resultat est valide.
 
 Ce que ca permet :
-- comparer glouton brut vs glouton ameliore par deuxOpt.
+- comparer glouton brut vs glouton ameliore par `deuxOpt()`.
 
 ---
 
@@ -88,13 +88,13 @@ Boucle de 100 iterations :
 2. accumuler dans totalMstApprox.
 
 Si mesurer2Opt et tour valide :
-- appliquer deuxOpt,
-- mesurer le temps de deuxOpt seul,
+- appliquer `deuxOpt()`,
+- mesurer le temps de `deuxOpt()` seul,
 - stocker la somme des couts pour la moyenne.
 
 Ce bloc compare :
 - mstApprox brut,
-- mstApprox + deuxOpt.
+- mstApprox + `deuxOpt()`.
 
 ---
 
@@ -119,19 +119,19 @@ Pourquoi utile :
 
 ---
 
-## Etape 6 - Bloc christofides (optionnel)
+## Etape 6 - Bloc `christofides()` (optionnel)
 
 Si benchmarkChristofides est vrai :
-- 100 iterations de christofides,
+- 100 iterations de `christofides()`,
 - accumulation du temps dans totalChristofides.
 
 Si mesurer2Opt et tour valide :
-- appliquer deuxOpt a ce tour,
-- mesurer le temps de deuxOpt seul,
+- appliquer `deuxOpt()` a ce tour,
+- mesurer le temps de `deuxOpt()` seul,
 - accumuler les couts pour la moyenne.
 
 But :
-- comparer christofides brut vs christofides + deuxOpt.
+- comparer `christofides()` brut vs `christofides()` + `deuxOpt()`.
 
 ---
 
@@ -146,11 +146,11 @@ Meme logique pour glouton + 2-opt : divise par `nbGlouton2OptValides`.
 
 Variables produites :
 - sGlouton, sKruskal, sMstApprox, sMM, sMstPlusMM, sChristofides,
-- plus les versions deuxOpt seules,
+- plus les versions `deuxOpt()` seules,
 - puis les versions combinees (ex: sGlouton2Opt = sGlouton + sGlouton2OptSeul).
 
 Idee cle :
-- la methode affiche a la fois le temps de base et le temps total avec deuxOpt.
+- la methode affiche a la fois le temps de base et le temps total avec `deuxOpt()`.
 
 ---
 
@@ -164,10 +164,10 @@ La console affiche un bloc Evaluation des temps avec :
 - mstApprox + 2-opt (si active),
 - minimumMatching seul (si demande),
 - pipeline MST + MM (si demande),
-- christofides (si demande),
-- christofides + 2-opt (si possible).
+- `christofides()` (si demande),
+- `christofides()` + 2-opt (si possible).
 
-Si deuxOpt est desactive (n trop grand), message explicite :
+Si `deuxOpt()` est desactive (n trop grand), message explicite :
 2-opt non mesure (n > MAX_NOEUDS_2OPT_BENCH).
 
 ---
@@ -182,12 +182,12 @@ Le taux de reussite indique combien d'iterations glouton ont produit un tour val
 - sur graphe complet : toujours 100/100 (100%)
 - sur graphe partiel : peut etre inferieur, selon la structure du graphe et les departs aleatoires
 
-Puis, si deuxOpt est actif :
+Puis, si `deuxOpt()` est actif :
 - Resultats glouton + 2-opt : taux de reussite, meilleur, pire, moyenne.
 - mstApprox : un cout unique.
 - mstApprox + 2-opt : un cout unique.
-- christofides (si active) : un cout unique.
-- christofides + 2-opt (si active) : un cout unique.
+- `christofides()` (si active) : un cout unique.
+- `christofides()` + 2-opt (si active) : un cout unique.
 
 Gestion des cas invalides :
 - si aucune valeur valide, la methode affiche n/a grace a Double.isFinite.
@@ -202,11 +202,11 @@ Forme de sortie :
 
 Dependances directes :
 - glouton,
-- deuxOpt,
+- `deuxOpt()`,
 - kruskal,
 - mstApprox,
 - minimumMatching,
-- christofides,
+- `christofides()`,
 - cout.
 
 API de mesure :
@@ -221,10 +221,10 @@ Lecture recommandee :
 1. Regarder le taux de reussite glouton : sur graphe partiel, un taux bas indique que le filtre de sortie rejette beaucoup de chemins depuis certains departs.
 2. Regarder les temps moyens : quelle methode est la plus rapide (pour glouton, temps par succes uniquement).
 3. Comparer les couts uniques de mstApprox/christofides entre eux et avec glouton moyen.
-4. Regarder l impact de deuxOpt : gain de qualite vs surcout en temps.
+4. Regarder l impact de `deuxOpt()` : gain de qualite vs surcout en temps.
 
 Regle pratique :
-- si deuxOpt reduit fortement le cout pour un surcout raisonnable, il est rentable.
+- si `deuxOpt()` reduit fortement le cout pour un surcout raisonnable, il est rentable.
 - si n est grand, son cout peut devenir trop eleve (d ou la coupure automatique).
 - un taux de reussite glouton faible sur graphe partiel peut indiquer que k est trop petit pour la taille du graphe.
 
@@ -241,4 +241,4 @@ Regle pratique :
 
 ## Resume en une phrase
 
-evaluerComplexite est un mini banc d essai integre qui compare vitesse et qualite de plusieurs pipelines TSP, avec ou sans deuxOpt, en affichant des tableaux lisibles et des stats detaillees seulement pour la partie aleatoire (glouton).
+evaluerComplexite est un mini banc d essai integre qui compare vitesse et qualite de plusieurs pipelines TSP, avec ou sans `deuxOpt()`, en affichant des tableaux lisibles et des stats detaillees seulement pour la partie aleatoire (glouton).
