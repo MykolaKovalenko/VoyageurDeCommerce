@@ -1,0 +1,79 @@
+Graphes et complexité 
+« Problème du voyageur de commerce »  
+Graphes et complexité 
+Projet 2025-2026 
+L’objet de ce projet est le développement d’un ensemble de classes et méthodes permettant de 
+résoudre le problème du « voyageur de commerce » de manière approchée. 
+Première partie – Génération de graphes 
+1) Commencez par ajouter des attributs « abs » (abscisse) et « ord » (ordonnée) à votre 
+classe « Nœud » ; ces attributs serviront à positionner chaque nœud de votre graphe  
+(caractérisé par ses abscisses et ordonnées) dans le plan. Ajoutez ensuite une méthode 
+« positionner » à votre classe « Graphe ». Cette méthode devra fixer aléatoirement entre 
+0 et 1 les abscisses et ordonnées de chaque nœud de votre graphe. 
+2) En partant d’un graphe sans arc de N nœuds, et après les avoir positionnés dans le plan, 
+la méthode « complet » (ajoutée à votre classe « Graphe ») devra ajouter un arc valué 
+(non orienté) entre toute paire de nœuds, la valuation de l’arc étant égale à la distance 
+euclidienne calculée entre les deux nœuds. Ajouter finalement une méthode « partiel » de 
+paramètre « k » à votre classe « Graphe » . Cette méthode devra connecter chaque nœud 
+de votre graphe à ses k plus proches voisins, par des arcs non orientés et valués par la 
+distance entre les paires de nœuds. 
+Deuxième partie – Algorithmes approchés 
+3) Ajouter à votre classe « Graphe » plusieurs méthodes permettant de construire une 
+solution approchée au problème du voyageur de commercer. Plus précisément, vous devrez 
+implanter les trois méthodes d’approximation étudiées en cours : – la méthode « glouton » permettant de créer un circuit par la méthode du plus proche 
+voisin. Pour rappel, cette méthode commence par choisir un nœud tiré aléatoirement, 
+puis relie à chaque itération le nœud courant avec son plus proche voisin encore non 
+visité. – la méthode « MST» (Minimum Spanning Tree) commençant par calculer un arbre de 
+recouvrement minimal (par exemple, par la méthode de Kruskal), avant d’effectuer un 
+parcours en profondeur pour construire un circuit fermé passant d’abord 2 fois par 
+chaque nœud, puis une fois et une seule (si cela est possible). En effet, si votre graphe 
+n’est pas complet, il est possible que 2 nœuds ne soient pas connectés directement entre 
+eux ; dans ce cas, le circuit construit ne sera pas nécessairement hamiltonien. – la méthode « MM » (minimal matching ou algorithme de Christofides). Notez que cette 
+méthode n’a été décrite que partiellement dans le cours, et que vous devrez donc trouver 
+des méthodes permettant de réaliser certains étapes de cet algorithme : calcul de 
+couplages parfait, calcul de circuits eulériens).  
+1 
+Troisième partie – Méthode heuristique 
+L’objet de cette troisième partie vise à évaluer les algorithmes d’approximation que vous aurez 
+implémentés. 
+4) Proposez un protocole expérimental pour comparer les différentes méthodes implantées et 
+évaluer leurs complexités en temps de calcul mesurés. Vous devrez comparer les méthodes 
+à la fois en termes de temps de calcul et de qualité de la solution retournée (longueur du 
+circuit optimal déterminé). 
+Vous ferez notamment varier le nombre de nœuds considérés, la forme du graphe (complet 
+ou non complet, avec un nombre variables de voisins) sachant qu’il est toujours 
+souhaitable de répéter plusieurs fois la même expérience (du fait que les problèmes posés 
+sont construits aléatoirement). Par exemple, il peut être pertinent de calculer le temps de 
+calcul moyen (et les écart types) pour un graphe avec 10, 100 et 1000 nœuds  
+5) Réalisez finalement le protocole proposé et commentez les résultats obtenus.  
+Organisation 
+Le projet devra être réalisé par groupe de 4 étudiant·es (seulement quelques exceptions 
+pourront être acceptées, avec des groupes de seulement 3 étudiant·es). La composition des 
+groupes devra être finalisée au plus tard le lundi 13 mars 2026. La liste des groupes devra 
+être transmise renseigné dans un fichier partagé (comme pour les binômes). 
+Le projet sera soutenu la semaine du 27 avril 2026, avec la transmission de vos codes sources 
+commentés, mais aussi une série de diapositives que vous présenterez oralement (en 15 minutes, 
+suivies de 10 minutes de question). Lors de cette présentation orale, vous devrez décrire les 
+choix effectués et solutions adoptées, mais aussi indiquer comment le travail a été réparti entre 
+les membres du groupe (avec un tableau indiquant pour chaque méthode implantée qui l’a 
+réalisé), sachant que chaque méthode ne pourra avoir été développée que par au plus 2 
+personnes du groupe.  
+Barème indicatif du projet (sur 20 points) 
+Première partie 
+Deuxième partie – méthode glouton 
+2 points 
+Deuxième partie – méthode NN 
+3 points 
+3 points 
+Deuxième partie – méthode MM 
+3 points 
+Troisième partie 
+Qualité (lisibilité et simplicité du code)  
+3 points 
+Qualité de la présentation 
+2 points 
+2 points 
+Qualité des réponses aux questions 
+2 points 
+Total 
+20 points
